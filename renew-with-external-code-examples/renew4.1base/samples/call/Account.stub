@@ -1,0 +1,12 @@
+package samples.call;
+class Account for net account {
+  void deposit(int amount) {
+    this:deposit(amount);
+  }
+  void withdraw(int amount) {
+    this:withdraw(amount);
+  }
+  int currentAmount() {
+    this:amount(return);
+  }
+}

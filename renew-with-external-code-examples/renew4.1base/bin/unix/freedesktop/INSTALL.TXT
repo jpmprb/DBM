@@ -1,0 +1,66 @@
+This directory (bin/unix/freedesktop) provides configuration files for
+FreeDesktop-compliant user interfaces like Gnome.  The files establish
+several mime types for Renew drawings and provide a launcher to be
+integrated into menus or the desktop.
+
+The files are provided without any warranty.
+
+The files have been created by an ambitious user within the Gnome 2.14
+desktop.
+
+Installation of these files has to be done according to the guidelines from
+the Gnome System administration guide, Sections "Desktop Files" and "Mime
+Types". The installdesktop script provided with the Renew release carries out
+a user-local installation of desktop icons and file type associations. This 
+feature is tested in the most common desktop environments, but may not work
+properly for some system configurations.
+
+For those cases, in which a manual installation is required, the basic steps 
+are listed here for your convenience, but without warranty as is the 
+installdesktop script:
+
+1. The pre-configured desktop configuration file Renew.desktop can be 
+  installed with the desktop-file-install tool from the desktop-file-utils
+  package.
+  # desktop-file-install --dir=/usr/share/applications/ Renew.desktop
+  or
+  % desktop-file-install --dir=~/.local/share/applications/ Renew.desktop
+
+  Probably the line starting with "Exec=" in the Renew.desktop file has to
+  be edited to include the full path to the renew application start script
+  in the uplevel directory (bin/unix).
+
+2. Copy the file renew.xml to the packages folder of your MIME database.
+  For a system-wide installation, this might be either
+  /usr/local/share/mime/packages or /usr/share/mime/packages,
+  for a user-local installation, this is probably
+  ~/.local/share/mime/packages.
+  Then initiate an update of the mime database, for example
+  # update-mime-database /usr/share/mime
+  or
+  % update-mime-database ~/.local/share/mime
+
+3. To register Renew as the default application for Renew associated
+y  mime types, you can use the xdg-mime tool from the xdg-utils package.
+  e.g. % xdg-mime default Renew.desktop application/x-renew-net.
+  Continue this step for all file types you wish to associate with Renew.
+  
+4. You can install icon files for the Renew file types which are provided
+  with the distribution in various sizes. All icon image files can be found
+  in the bin/unix/fredesktop/icons subfolder. They can be installed with
+  the xdg-icon-resource tool. The tool requires the size of the icon as a
+  parameter. 
+  e.g. % xdg-icon-resource install --size 48 
+       	 		   icons/48x48/mimetypes/application-x-renew-net.png
+  Continue this step according to the file type associations configured above.
+  Do not forget the Renew application icon.
+  % xdg-icon-resource install --novendor 48 icons/48x48/apps/renew.png
+
+The previous steps make Renew drawing files known to the file manager and 
+integrate the Renew application to the application launch menu. This allows 
+you to open drawing files in the Renew application by double clicking the 
+file in the file manager. However, each drawing file will be opened in an 
+individual Renew instance.
+You can configure Renew to open all drawings in one Renew instance by assigning
+an open port to the de.renew.loadServerPort property to the configuration file
+(refer to the Renew manual for details).

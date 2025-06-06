@@ -1,0 +1,39 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="weather-example:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/weather_example_jar</output-path>
+    <root id="archive" name="weather-example.jar">
+      <element id="module-output" name="weather-example" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../scripts/org.json.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/ant-1.10.8.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/jline-2.14.4.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/log4j-1.2.12.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-io-2.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/commons-cli-1.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/ant-launcher-1.10.8.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/docking-frames-core.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/docking-frames-common.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphics2d-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphicsio-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphicsbase-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphicsio-ps-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphicsio-pdf-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/libs/freehep-graphicsio-svg-2.4-renew.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/CH.ifa.draw-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.gui-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.misc-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.util-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.export-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.remote-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.console-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.ptchannel-0.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.formalism-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.navigator-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.simulator-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.logging.gui-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.splashscreen-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.formalism.gui-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.netcomponents-2.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../../../../../../../estig_2022_2023/primavera-2022-2023/DBM-2022-2023/renew4.1base/plugins/de.renew.windowmanagement-2.0.0.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,1 @@
+"%_JAVA_BIN%java" -classpath "%CLASSPATH:"=%" de.renew.export.io.exportcli.Export %1 %2

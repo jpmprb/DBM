@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# Define the base directory using a relative path
+BASE_DIR_RELATIVE="../../renew4.1base"
+
+# Get the absolute path of the script's directory
+SCRIPT_DIR_ABS="$(cd "$(dirname "$0")" && pwd)"
+
+# Construct the absolute path for renew4.1base
+RENEW_BASE_ABS="${SCRIPT_DIR_ABS}/${BASE_DIR_RELATIVE}"
+
+# search for needed jars in dist/plugins directory
+addcp=
+for f in $(cd "${RENEW_BASE_ABS}" && find * -name "*.jar") ; do
+  addcp="${addcp}":"${RENEW_BASE_ABS}/${f}"
+done
+
+# set CLASSPATH
+if test "$CLASSPATH" != ""
+then
+  CP="${CLASSPATH}${addcp}"
+else
+  CP=".${addcp}"
+fi
+echo "Using CLASSPATH ${CP}"
+
+# find java command
+JAVACMD=java
+if test "$JAVA_HOME" != ""
+then
+  if test -x "$JAVA_HOME/bin/java"
+  then
+    JAVACMD="$JAVA_HOME/bin/java"
+  fi
+fi
+
+# invoke StubCompiler
+"$JAVACMD" -cp "$CP" \
+         de.renew.call.StubCompiler "$@"

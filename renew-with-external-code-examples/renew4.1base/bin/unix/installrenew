@@ -1,0 +1,324 @@
+#!/bin/bash
+#
+# Make this script executable or start with
+#   sh installrenew
+# to generate the Renew scripts. java must be
+# present for this script to complete.
+#
+while [ "X-" = `echo "X$1" | cut -c1-2` ]; do
+    case "$1" in
+    "-v"|"--verbose")
+        verbose=true			# used in configuration section
+        echo "OPTIONS: Verbose"
+        shift
+        ;;
+    "-h"|"--help")
+        showhelp=true
+        break
+        ;;
+    "-d"|"--no-desktop")
+        desktop=false
+        break
+        ;;
+    "-")
+        break
+        ;;
+    *)
+        echo "$0: unknown option: $1"
+        showhelp=true
+        break
+        ;;
+    esac
+done
+
+cd ../..
+if test ! -d bin/unix
+then
+  echo Please change to {RENEW_HOME}/bin/unix where the install script is located!
+  exit
+fi
+
+ask()
+{
+	question="$1 - yes (y) / no (n) / cancel script (c)"
+	echo $question
+	read -n 1 sel
+	if [ $sel = "y" ] || [ $sel = "Y" ]; then
+		CHOICE=true
+	elif [ $sel = "n" ] || [ $sel = "N" ]; then
+		CHOICE=false
+	elif [ $sel = "c" ]; then
+		exit 1	
+	else
+		ask $question
+	fi
+}
+
+# If the following plausibility check poses a problem, simply delete
+# everything up to the next comment.
+if (java -version) 2>/dev/null
+then
+  echo Command java detected. Proceeding.
+else
+  echo Command java not found. Aborting.
+  exit
+fi
+
+# Get the install path
+distbase=`pwd`
+if test -e "$distbase/de.renew.loader.jar"
+then
+        loadercp="$distbase/de.renew.loader"
+else
+    cd ..
+    distbase=`pwd`
+    loadercp="$distbase/dist/de.renew.loader"
+    cd Core
+fi
+
+if test -x bin/unix/renew
+then
+  echo A script named renew is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/renew
+  echo '# search for loader.jar in dist directory' >>bin/unix/renew
+  echo 'if test ! -r "'$loadercp'.jar"' >>bin/unix/renew
+  echo 'then' >>bin/unix/renew
+  echo '  echo cannot find loader.jar in dist directory!' >>bin/unix/renew
+  echo '  exit' >>bin/unix/renew
+  echo 'fi' >>bin/unix/renew
+  echo '' >>bin/unix/renew
+  echo '# set NETPATH' >>bin/unix/renew
+  echo 'NP=.' >>bin/unix/renew
+  echo 'if test "$NETPATH" != ""' >>bin/unix/renew
+  echo 'then' >>bin/unix/renew
+  echo '  NP="$NETPATH"' >>bin/unix/renew
+  echo 'fi' >>bin/unix/renew
+  echo '' >>bin/unix/renew
+  echo '# find java command' >>bin/unix/renew
+  echo 'JAVACMD=java' >>bin/unix/renew
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/renew
+  echo 'then' >>bin/unix/renew
+  echo '  if test -x "$JAVA_HOME/bin/java"' >>bin/unix/renew
+  echo '  then' >>bin/unix/renew
+  echo '    JAVACMD="$JAVA_HOME/bin/java"' >>bin/unix/renew
+  echo '  fi' >>bin/unix/renew
+  echo 'fi' >>bin/unix/renew
+  echo '' >>bin/unix/renew
+  echo '# start renew gui' >>bin/unix/renew
+  echo 'echo "JAVA COMMAND: $JAVACMD"' >>bin/unix/renew
+  echo 'echo "NETPATH: $NP"' >>bin/unix/renew
+  echo '$JAVACMD -Xmx200M \' >>bin/unix/renew
+  echo '         -Dde.renew.netPath="$NP" \' >>bin/unix/renew
+  echo '         -p "'$distbase':'$distbase'/libs" \' >>bin/unix/renew
+  echo '         -m "de.renew.loader" \' >>bin/unix/renew
+  echo '         gui "$@"' >>bin/unix/renew
+  chmod 755 bin/unix/renew
+  echo "Created renew start script."
+fi
+
+
+if test -x bin/unix/makestub
+then
+  echo A script named makestub is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/makestub
+  echo '# search for needed jars in dist/plugins directory' >>bin/unix/makestub
+  echo 'addcp=' >>bin/unix/makestub
+  echo 'for f in `cd "'$distbase'"; find * -name "*.jar"` ; do' >>bin/unix/makestub
+  echo '  addcp="${addcp}":"'$distbase'/${f}"' >>bin/unix/makestub
+  echo 'done' >>bin/unix/makestub
+  echo '' >>bin/unix/makestub
+  echo '# set CLASSPATH' >>bin/unix/makestub
+  echo 'if test "$CLASSPATH" != ""' >>bin/unix/makestub
+  echo 'then' >>bin/unix/makestub
+  echo '  CP="${CLASSPATH}${addcp}"' >>bin/unix/makestub
+  echo 'else' >>bin/unix/makestub
+  echo '  CP=".${addcp}"' >>bin/unix/makestub
+  echo 'fi' >>bin/unix/makestub
+  echo 'echo "Using CLASSPATH ${CP}"' >>bin/unix/makestub
+  echo '' >>bin/unix/makestub
+  echo '# find java command' >>bin/unix/makestub
+  echo 'JAVACMD=java' >>bin/unix/makestub
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/makestub
+  echo 'then' >>bin/unix/makestub
+  echo '  if test -x "$JAVA_HOME/bin/java"' >>bin/unix/makestub
+  echo '  then' >>bin/unix/makestub
+  echo '    JAVACMD="$JAVA_HOME/bin/java"' >>bin/unix/makestub
+  echo '  fi' >>bin/unix/makestub
+  echo 'fi' >>bin/unix/makestub
+  echo '' >>bin/unix/makestub
+  echo '# invoke StubGenerator' >>bin/unix/makestub
+  echo '"$JAVACMD" -cp "$CP" \' >>bin/unix/makestub
+  echo '         de.renew.call.StubGenerator "$@"' >>bin/unix/makestub
+  chmod 755 bin/unix/makestub
+  echo "Created makestub script."
+fi
+
+
+if test -x bin/unix/compilestub
+then
+  echo A script named compilestub is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/compilestub
+  echo '# search for needed jars in dist/plugins directory' >>bin/unix/compilestub
+  echo 'addcp=' >>bin/unix/compilestub
+  echo 'for f in `cd "'$distbase'"; find * -name "*.jar"` ; do' >>bin/unix/compilestub
+  echo '  addcp="${addcp}":"'$distbase'/${f}"' >>bin/unix/compilestub
+  echo 'done' >>bin/unix/compilestub
+  echo '' >>bin/unix/compilestub
+  echo '# set CLASSPATH' >>bin/unix/compilestub
+  echo 'if test "$CLASSPATH" != ""' >>bin/unix/compilestub
+  echo 'then' >>bin/unix/compilestub
+  echo '  CP="${CLASSPATH}${addcp}"' >>bin/unix/compilestub
+  echo 'else' >>bin/unix/compilestub
+  echo '  CP=".${addcp}"' >>bin/unix/compilestub
+  echo 'fi' >>bin/unix/compilestub
+  echo 'echo "Using CLASSPATH ${CP}"' >>bin/unix/compilestub
+  echo '' >>bin/unix/compilestub
+  echo '# find java command' >>bin/unix/compilestub
+  echo 'JAVACMD=java' >>bin/unix/compilestub
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/compilestub
+  echo 'then' >>bin/unix/compilestub
+  echo '  if test -x "$JAVA_HOME/bin/java"' >>bin/unix/compilestub
+  echo '  then' >>bin/unix/compilestub
+  echo '    JAVACMD="$JAVA_HOME/bin/java"' >>bin/unix/compilestub
+  echo '  fi' >>bin/unix/compilestub
+  echo 'fi' >>bin/unix/compilestub
+  echo '' >>bin/unix/compilestub
+  echo '# invoke StubCompiler' >>bin/unix/compilestub
+  echo '"$JAVACMD" -cp "$CP" \' >>bin/unix/compilestub
+  echo '         de.renew.call.StubCompiler "$@"' >>bin/unix/compilestub
+  chmod 755 bin/unix/compilestub
+  echo "Created compilestub script."
+fi
+
+
+if test -x bin/unix/jcompile
+then
+  echo A script named jcompile is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/jcompile
+  echo '# search for needed jars in dist/plugins directory' >>bin/unix/jcompile
+  echo 'addcp=' >>bin/unix/jcompile
+  echo 'for f in `cd "'$distbase'"; find * -name "*.jar"` ; do' >>bin/unix/jcompile
+  echo '  addcp="${addcp}":"'$distbase'/${f}"' >>bin/unix/jcompile
+  echo 'done' >>bin/unix/jcompile
+  echo '' >>bin/unix/jcompile
+  echo '# set CLASSPATH' >>bin/unix/jcompile
+  echo 'if test "$CLASSPATH" != ""' >>bin/unix/jcompile
+  echo 'then' >>bin/unix/jcompile
+  echo '  CP="${CLASSPATH}${addcp}"' >>bin/unix/jcompile
+  echo 'else' >>bin/unix/jcompile
+  echo '  CP=".${addcp}"' >>bin/unix/jcompile
+  echo 'fi' >>bin/unix/jcompile
+  echo 'echo "Using CLASSPATH ${CP}"' >>bin/unix/jcompile
+  echo '' >>bin/unix/jcompile
+  echo '# find java compiler' >>bin/unix/jcompile
+  echo 'JAVAC=javac' >>bin/unix/jcompile
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/jcompile
+  echo 'then' >>bin/unix/jcompile
+  echo '  if test -x "$JAVA_HOME/bin/javac"' >>bin/unix/jcompile
+  echo '  then' >>bin/unix/jcompile
+  echo '    JAVAC="$JAVA_HOME/bin/javac"' >>bin/unix/jcompile
+  echo '  fi' >>bin/unix/jcompile
+  echo 'fi' >>bin/unix/jcompile
+  echo '' >>bin/unix/jcompile
+  echo '"$JAVAC" -classpath "$CP" \' >>bin/unix/jcompile
+  echo '       "$@"' >>bin/unix/jcompile
+  chmod 755 bin/unix/jcompile
+  echo "Created jcompile script."
+fi
+
+
+if test -x bin/unix/loadrenew
+then
+  echo A script named loadrenew is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/loadrenew
+  echo '# search for needed jars in dist/plugins directory' >>bin/unix/loadrenew
+  echo 'addcp=' >>bin/unix/loadrenew
+  echo 'for f in `cd "'$distbase'"; find * -name "*.jar"` ; do' >>bin/unix/loadrenew
+  echo '  addcp="${addcp}":"'$distbase'/${f}"' >>bin/unix/loadrenew
+  echo 'done' >>bin/unix/loadrenew
+  echo '' >>bin/unix/loadrenew
+  echo '# set CLASSPATH' >>bin/unix/loadrenew
+  echo 'if test "$CLASSPATH" != ""' >>bin/unix/loadrenew
+  echo 'then' >>bin/unix/loadrenew
+  echo '  CP="${CLASSPATH}${addcp}"' >>bin/unix/loadrenew
+  echo 'else' >>bin/unix/loadrenew
+  echo '  CP=".${addcp}"' >>bin/unix/loadrenew
+  echo 'fi' >>bin/unix/loadrenew
+  echo 'echo "Using CLASSPATH ${CP}"' >>bin/unix/loadrenew
+  echo '' >>bin/unix/loadrenew
+  echo '# find java command' >>bin/unix/loadrenew
+  echo 'JAVACMD=java' >>bin/unix/loadrenew
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/loadrenew
+  echo 'then' >>bin/unix/loadrenew
+  echo '  if test -x "$JAVA_HOME/bin/java"' >>bin/unix/loadrenew
+  echo '  then' >>bin/unix/loadrenew
+  echo '    JAVACMD="$JAVA_HOME/bin/java"' >>bin/unix/loadrenew
+  echo '  fi' >>bin/unix/loadrenew
+  echo 'fi' >>bin/unix/loadrenew
+  echo '' >>bin/unix/loadrenew
+  echo 'echo "============================================"' >>bin/unix/loadrenew
+  echo 'echo "Trying to connect to a running DrawingLoadServer:"' >>bin/unix/loadrenew
+  echo '# invoke DrawingLoadClient' >>bin/unix/loadrenew
+  echo '"$JAVACMD" -cp "$CP" \' >>bin/unix/loadrenew
+  echo '         CH.ifa.draw.application.DrawingLoadClient "$@"' >>bin/unix/loadrenew
+  echo 'if [ $? -eq 1 -o $? -eq 2 ]' >>bin/unix/loadrenew
+  echo 'then' >>bin/unix/loadrenew
+  echo '    echo "INFO: No DrawingLoadServer found, starting a new Renew instance instead..."' >>bin/unix/loadrenew
+  echo '    "'$distbase'"/bin/unix/renew "$@"' >>bin/unix/loadrenew
+  echo 'fi' >>bin/unix/loadrenew
+  chmod 755 bin/unix/loadrenew
+  echo "Created loadrenew script."
+fi
+
+if test -x bin/unix/renewexport
+then
+  echo A script named renewexport is already present. I will not overwrite it.
+else
+  echo '#!/bin/sh' >bin/unix/renewexport
+  echo '# search for needed jars in dist/plugins directory' >>bin/unix/renewexport
+  echo 'addcp=' >>bin/unix/renewexport
+  echo 'for f in `cd "'$distbase'"; find * -name "*.jar"` ; do' >>bin/unix/renewexport
+  echo '  addcp="${addcp}":"'$distbase'/${f}"' >>bin/unix/renewexport
+  echo 'done' >>bin/unix/renewexport
+  echo '' >>bin/unix/renewexport
+  echo '# set CLASSPATH' >>bin/unix/renewexport
+  echo 'if test "$CLASSPATH" != ""' >>bin/unix/renewexport
+  echo 'then' >>bin/unix/renewexport
+  echo '  CP="${CLASSPATH}${addcp}"' >>bin/unix/renewexport
+  echo 'else' >>bin/unix/renewexport
+  echo '  CP=".${addcp}"' >>bin/unix/renewexport
+  echo 'fi' >>bin/unix/renewexport
+  echo 'echo "Using CLASSPATH ${CP}"' >>bin/unix/renewexport
+  echo '' >>bin/unix/renewexport
+  echo '# find java command' >>bin/unix/renewexport
+  echo 'JAVACMD=java' >>bin/unix/renewexport
+  echo 'if test "$JAVA_HOME" != ""' >>bin/unix/renewexport
+  echo 'then' >>bin/unix/renewexport
+  echo '  if test -x "$JAVA_HOME/bin/java"' >>bin/unix/renewexport
+  echo '  then' >>bin/unix/renewexport
+  echo '    JAVACMD="$JAVA_HOME/bin/java"' >>bin/unix/renewexport
+  echo '  fi' >>bin/unix/renewexport
+  echo 'fi' >>bin/unix/renewexport
+  echo '' >>bin/unix/renewexport
+  echo '# invoke Renew Export' >>bin/unix/renewexport
+  echo '"$JAVACMD" -cp "$CP" \' >>bin/unix/renewexport
+  echo '         de.renew.export.io.exportcli.Export "$1" "$2"' >>bin/unix/renewexport
+  chmod 755 bin/unix/renewexport
+  echo "Created renewexport script."
+fi
+
+if $desktop ; then
+  echo "Renew supports freedesktop integration for it's associated file types."
+  ask "Do you wish to install desktop icons and file type associations now?"
+  if  $CHOICE; then
+    echo "Installing freedesktop integration in ~/.local/share ..."
+    sed -e 's#Exec=.*#Exec="'"`pwd`"'/bin/unix/loadrenew"#' -i'' bin/unix/freedesktop/Renew.desktop
+    cd bin/unix/freedesktop
+    bash installdesktop
+  fi
+fi

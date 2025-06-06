@@ -1,0 +1,196 @@
+Renew - The Reference Net Workshop
+==================================
+
+Renew is a high-level Petri net simulator written in Java.
+This file tells you the most rudimentary information about Renew.
+It should suffice to get Renew running and to extract the
+full documentation from the archives.
+
+
+License Terms
+=============
+
+See the file doc/LICENSE for the license terms and the disclaimers that 
+apply to Renew.
+
+
+Installation
+============
+
+Before you can use Renew, you must have Java 11 or higher installed. If you 
+have not done this yet, we suggest that you get the latest Java Development 
+Kit from Oracle (https://www.oracle.com/java/) or from Adoptium 
+(https://adoptium.net/) where versions for Windows, Linux, MacOS are 
+available. Renew only requries the Java Runtime Environment (JRE), but it is 
+no longer distributed separately.
+
+There are many other platforms that cannot be listed here. For the 
+installation of the Java platforms, please refer to the instructions 
+that come with the executables. Renew is a full Java application, not 
+an applet, and it is not intended to be used from WWW browsers like
+Mozilla or Internet Explorer. You must install a standalone Java.
+
+Now the installation procedure depends on your operating system.
+
+Apple Macintosh
+---------------
+
+From version 2.5.1 onwards, Renew requires at least Java 11.
+    
+Since MacOS is built upon a Unix core, 
+please follow the installation directions for Unix.
+To do so, open the Terminal application which can be found in
+/Applications/Utilities. You may add the optional AppleUI plugin.
+
+We provide a MacOS application bundle for download which 
+can replace the Unix-style installation of Renew.
+The application is configured in GUI mode using the OS X build-in 
+console output and comes with the (limited) prompt capabilities of 
+the GuiPrompt plugin. The application bundle comes with the Unix 
+install scripts, which can be used as discribed above. These are 
+hidden in the application bundle. 
+
+
+Other Operating Systems
+-----------------------
+
+You should have got the file renew4.0base.zip. To uncompress 
+the base package, issue the command
+
+  unzip renew4.0base.zip
+
+which will create a directory with the name renew4.0.
+
+The jar-file renew4.0/de.renew.loader.jar is automatically created.
+That file contains the compiled Java classes of the plugin
+system. It should not be unpacked, because it can be added
+directly to your classpath and allows faster loading than many
+unpacked files.
+
+The functionality of Renew has been decomposed into several
+plugins which reside as .jar files in the subdirectory
+renew4.0/plugins. This is also the place where you can add extra
+plugins.
+
+For some operating systems there are special scripts that
+ease the installation.
+
+Unix and MacOS
+.................
+
+Change to the directory renew4.0/bin/unix and call the
+installation script installrenew in a sh-shell, which will
+create the necessary startup scripts for you.
+
+  cd renew4.0/bin/unix
+  sh installrenew
+
+It is important that you start the install script from the 
+proper directory, otherwise it cannot determine the correct
+paths. Now you can use renew4.0/bin/unix/renew
+to start Renew.
+
+Windows
+.......
+
+In the directory renew4.0\bin\win you will find the
+installation script installrenew.bat. First, invoke
+
+  cd renew4.0\bin\win
+  installrenew
+
+to create the renew startup scripts according to your directory
+structure. It is required that you change to the binary directory
+first, otherwise the paths cannot be correctly determined. 
+Then call
+
+  renew
+
+to start the editor.
+
+Manual Installation
+...................
+
+Maybe we did not provide a shell script for your platform
+or our scripts did not work. You can always start
+Renew manually, which is not very difficult after all.
+
+  java -p path/to/renew4.0:path/to/renew4.0/libs -m path/to/renew4.0/de.renew.loader gui
+
+will start the renew editor, if the archive was extracted to
+/path/to. Depending on your system you may need to
+issue a different command. When in the /path/to/renew4.0
+directory, relative paths may shorten this command to
+
+  java -p .:libs -m de.renew.loader gui
+
+The documentation contains a few hints on alternative
+commands or settings to start the application.
+
+
+Source Installation
+-------------------
+
+Usually there is no need to do a source installation.
+If you feel confused by this section, simply skip it.
+
+If you want to uncompress the source package, type
+
+  unzip renew4.0source.zip
+
+which will put files into the directories renew4.0/src and
+renew4.0/doc. Note that you will require a full-fledged Java
+compiler, not only a Java runtime environment, to compile the
+source code. If you do not have a Java compiler yet, you do
+not need the source code.
+
+To compile the sources, you will need some tools which are
+listed in the file renew4.0/src/README. In this file you
+will also find some hints on how to configure the compilation 
+process.
+
+The results of the compilation will go in the directory
+renew4.0/src/dist. There you will find de.renew.loader.jar
+and also a plugins directory. To avoid confusion with the
+distributed application, you should delete
+renew4.0/de.renew.loader.jar and the renew4.0/plugins
+directory of the binary distribution.
+
+
+Further reading
+===============
+
+Consult the file doc/renew.pdf for more information
+about the usage of Renew and the syntax and semantics of
+reference nets.
+
+Consult the file doc/architecture.pdf, if you are an experienced
+Renew user and want to apply modifications to Renew.
+
+
+Contact
+=======
+
+To get in contact with us, you can send an email to
+
+  support@renew.de
+
+regarding any aspect of the Renew tool, especially update 
+notification requests, bug reports, feature requests, and
+source code submissions. Our postal address is
+
+  Arbeitsbereich TGI
+    - Renew -
+  Fachbereich Informatik, Uni Hamburg
+  Vogt-Koelln-Strasse 30
+  D-22527 Hamburg
+  Germany
+
+in case you do not have access to email. The latest
+news about Renew are available from the URL
+
+  http://www.renew.de/
+
+and in the same place improved versions and bug fixes 
+occur first.
+

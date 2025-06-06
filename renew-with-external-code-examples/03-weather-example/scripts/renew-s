@@ -1,0 +1,123 @@
+#!/bin/sh
+
+###### 1 ######### Define your external classes directory ---
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Set MY_EXTERNAL_CLASSES_DIR to the parent directory of the script's location
+MY_EXTERNAL_CLASSES_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+echo "MY_EXTERNAL_CLASSES_DIR set to: $MY_EXTERNAL_CLASSES_DIR"
+# Optional: Check if the directory exists and list its contents
+if [ -d "$MY_EXTERNAL_CLASSES_DIR" ]; then
+  echo "Contents of MY_EXTERNAL_CLASSES_DIR:"
+  ls "$MY_EXTERNAL_CLASSES_DIR"
+else
+  echo "Warning: MY_EXTERNAL_CLASSES_DIR does not exist or is not a directory: $MY_EXTERNAL_CLASSES_DIR"
+fi
+
+###### 2 ######### Define the renew home directory ---
+HOMERENEW="$(cd "${SCRIPT_DIR}/../.." && pwd)/renew4.1base"
+# search for loader.jar in dist directory
+if test ! -r "${HOMERENEW}/de.renew.loader.jar"
+then
+  echo "Error: cannot find loader.jar in ${HOMERENEW}!"
+  echo "Please check your HOMERENEW variable and ensure the Renew installation is correct at that location."
+  exit 1
+fi
+
+##### 3 ###### CLASSPATH
+addcp=
+# Correctly iterate over files, ensuring HOMERENEW is the base for find
+for f in $(find "${HOMERENEW}" -name "*.jar" -type f -print) ; do
+  addcp="${addcp}:${f}"
+done
+
+# Set CLASSPATH:
+CLASSPATH_COMPONENTS="${HOMERENEW}:${HOMERENEW}/lib:${MY_EXTERNAL_CLASSES_DIR}"
+
+if [ -n "$addcp" ] && [ "${addcp#":"}" = "$addcp" ]; then
+    if [ -n "${CLASSPATH_COMPONENTS}" ]; then
+        CP="${CLASSPATH_COMPONENTS}${addcp}"
+    else
+        CP="${MY_EXTERNAL_CLASSES_DIR}${addcp}"
+    fi
+else
+    CP="${CLASSPATH_COMPONENTS}${addcp}"
+fi
+
+if [ -z "$CP" ] || [ "$CP" = ":" ]; then
+    CP="."
+elif [ "${CP#:}" != "$CP" ]; then
+    CP="${CP#:}"
+fi
+if [ "${CP%:}" != "$CP" ]; then
+    CP="${CP%:}"
+fi
+
+echo "CLASSPATH: ${CP}"
+
+
+##### 4 ##### Command
+# find java command
+JAVACMD=java
+if test "$JAVA_HOME" != ""
+then
+  if test -x "$JAVA_HOME/bin/java"
+  then
+    JAVACMD="$JAVA_HOME/bin/java"
+  fi
+fi
+
+# Ensure MY_EXTERNAL_CLASSES_DIR is not empty before using it
+if [ -z "$MY_EXTERNAL_CLASSES_DIR" ]; then
+  echo "Error: MY_EXTERNAL_CLASSES_DIR is not set. Cannot start Renew."
+  exit 1
+fi
+
+# Construct the module path carefully
+MODULE_PATH="${HOMERENEW}"
+if [ -d "${HOMERENEW}/libs" ]; then
+    MODULE_PATH="${MODULE_PATH}:${HOMERENEW}/libs"
+fi
+if [ -n "$MY_EXTERNAL_CLASSES_DIR" ] && [ "$MY_EXTERNAL_CLASSES_DIR" != "$HOMERENEW" ] && [ "$MY_EXTERNAL_CLASSES_DIR" != "${HOMERENEW}/libs" ]; then
+    MODULE_PATH="${MODULE_PATH}:${MY_EXTERNAL_CLASSES_DIR}"
+fi
+
+echo "JAVA COMMAND: $JAVACMD"
+echo "NETPATH (de.renew.netPath): $MY_EXTERNAL_CLASSES_DIR"
+
+# --- Start Renew GUI with .rnw files from parent directory and original script args ---
+
+# Check if any .rnw files exist in MY_EXTERNAL_CLASSES_DIR
+# This flag will help decide whether to pass the glob or not.
+_found_rnw_files_in_parent_dir=0
+# Loop through the glob expansion.
+# If no files match, the loop body won't execute (in most modern POSIX shells).
+# If a file matches, it will be checked with `[ -f ... ]`.
+for _rnw_file_candidate in "$MY_EXTERNAL_CLASSES_DIR"/*.rnw; do
+    if [ -f "$_rnw_file_candidate" ]; then
+        _found_rnw_files_in_parent_dir=1
+        break # Found at least one, no need to check further
+    fi
+done
+
+# Base Java command arguments
+JAVA_CMD_BASE_ARGS="-Xmx200M \
+         -Dde.renew.netPath=\"$MY_EXTERNAL_CLASSES_DIR\" \
+         -classpath \"$CP\" \
+         -p \"$MODULE_PATH\" \
+         -m \"de.renew.loader/de.renew.plugin.PluginManager\" \
+         gui"
+
+# Launch Renew
+if [ "$_found_rnw_files_in_parent_dir" -eq 1 ]; then
+    echo "Found .rnw files in parent directory. Opening them."
+    # The shell will expand "$MY_EXTERNAL_CLASSES_DIR"/*.rnw to a list of matching files.
+    # Each filename (even with spaces) will be passed as a separate argument.
+    # Then, "$@" (original script arguments) are appended.
+    eval "$JAVACMD $JAVA_CMD_BASE_ARGS \"\$MY_EXTERNAL_CLASSES_DIR\"/*.rnw \"\$@\""
+else
+    echo "No .rnw files found in parent directory, or parent directory not accessible."
+    # Call with original script arguments only
+    eval "$JAVACMD $JAVA_CMD_BASE_ARGS \"\$@\""
+fi

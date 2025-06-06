@@ -1,0 +1,83 @@
+#!/bin/bash
+
+## Integrate Renew into current desktop environment.
+while [ "X-" == `echo "X$1" | cut -c1-2` ]; do
+    case "$1" in
+    "-v"|"--verbose")
+        verbose=true			# used in configuration section
+        echo "OPTIONS: Verbose"
+        shift
+        ;;
+    "-h"|"--help")
+        showhelp=true
+        break
+        ;;
+    "-")
+        break
+        ;;
+    *)
+        echo "$0: unknown option: $1"
+        showhelp=true
+        break
+        ;;
+    esac
+done
+
+
+## Desktop file install
+if [ "$verbose" = "true" ]; then
+  echo "Installing desktop file: Renew.desktop"
+fi
+desktop-file-install --dir=$HOME/.local/share/applications/ Renew.desktop
+
+
+## Mime types configuration
+if [ "$verbose" = "true" ]; then
+  echo "Installing mime types configuration file: renew.xml and invoke update of mime database"
+fi
+mkdir -p $HOME/.local/share/mime/packages
+cp -i renew.xml $HOME/.local/share/mime/packages
+update-mime-database $HOME/.local/share/mime
+
+if [ "$verbose" = "true" ]; then
+  echo "Registering Renew as default application for saved files of the following mime types:"
+  echo "application/x-renew-drawing"
+  echo "application/x-renew-interactiondiagram"
+  echo "application/x-renew-lola"
+  echo "application/x-renew-state"
+  echo "application/pnml+xml"
+  echo "application/x-renew-net"
+  echo "application/x-renew-sns"
+  echo "application/x-renew"
+fi
+
+## Register Renew as default application for the Renew associated mime types
+xdg-mime default Renew.desktop application/x-renew-drawing
+xdg-mime default Renew.desktop application/x-renew-interactiondiagram
+xdg-mime default Renew.desktop application/x-renew-lola
+xdg-mime default Renew.desktop application/x-renew-state
+xdg-mime default Renew.desktop application/pnml+xml
+xdg-mime default Renew.desktop application/x-renew-net
+xdg-mime default Renew.desktop application/x-renew-sns
+xdg-mime default Renew.desktop application/x-renew
+
+## Install icon images
+for size in 16 24 32 48 64 128 256 512
+  do
+    if [ "$verbose" = "true" ]; then
+      echo "Installing application icon: " icons/$size"x"$size/apps/renew.png
+    fi
+    xdg-icon-resource install --novendor --size $size icons/$size"x"$size/apps/renew.png
+    for file in icons/$size"x"$size/mimetypes/*
+      do
+        if [ "$verbose" = "true" ]; then
+	  echo "Installing icon file: $file"
+        fi
+        xdg-icon-resource install --size $size $file
+    done 
+done
+
+echo ""
+echo "Desktop integration complete."
+echo "Some system configurations require an update of the icon cache."
+echo "Icon caches update themself when You re-login to the system."

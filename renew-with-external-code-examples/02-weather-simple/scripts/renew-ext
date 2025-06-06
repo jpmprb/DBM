@@ -1,0 +1,365 @@
+#!/bin/bash
+# ==============================================================================
+# Script to run Renew with external classes and specific .rnw files
+# Version: 3.1 (Revised path handling)
+# Purpose: This script configures the Java environment and launches the
+#          Renew application, including user-specified external JARs and
+#          automatically opening .rnw files. HOMERENEW and
+#          MY_EXTERNAL_CLASSES_DIR are resolved relative to the script's location.
+#
+# Key Features:
+# - Automatically detects Renew home and external class directories relative
+#   to this script's location.
+# - Constructs Classpath (CP) and Module Path (MP) including Renew's internal
+#   JARs and user-provided external JARs using absolute paths.
+# - Requires Java 11 or newer due to the use of java.net.http.HttpClient.
+# - Includes diagnostics for Java version and critical class presence.
+# - Explicitly adds the java.net.http module for compatibility.
+# ==============================================================================
+
+# --- Configuration ---
+echo "[CONFIG] Initializing script configuration..."
+
+# Determine the absolute directory where this script is located.
+# This MUST be defined first, as other paths depend on it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ $? -ne 0 ] || [ -z "$SCRIPT_DIR" ] || [ ! -d "$SCRIPT_DIR" ]; then
+  echo "[CONFIG FATAL] Could not determine the script's own directory. Exiting." >&2
+  exit 1
+fi
+echo "  [INFO] Script directory (SCRIPT_DIR) resolved to: $SCRIPT_DIR"
+
+# Define the Renew home directory.
+# The path specified by _HOMERENEW_REL_PATH is relative to this script's own location.
+# Default: ../../renew4.1base (two levels up from script dir, then into renew4.1base)
+_HOMERENEW_REL_PATH="../../renew4.1base"
+_CANDIDATE_HOMERENEW_ABS_PATH="${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}"
+
+HOMERENEW="$(cd "$_CANDIDATE_HOMERENEW_ABS_PATH" && pwd 2>/dev/null)" # Suppress cd's error output
+
+if [ $? -ne 0 ] || [ -z "$HOMERENEW" ] || [ ! -d "$HOMERENEW" ]; then
+  echo "[CONFIG FATAL] Could not resolve Renew home directory (HOMERENEW)." >&2
+  echo "  Script location (SCRIPT_DIR):       '${SCRIPT_DIR}'" >&2
+  echo "  Configured relative path to Renew:  '${_HOMERENEW_REL_PATH}'" >&2
+  echo "  Attempted to find Renew at:         '${_CANDIDATE_HOMERENEW_ABS_PATH}'" >&2
+  echo "  This path does not resolve to a valid directory." >&2
+  echo "  Please ensure the directory exists at this location relative to the script." >&2
+  exit 1
+fi
+echo "  [INFO] Renew home (HOMERENEW) resolved to: $HOMERENEW"
+
+# Define MY_EXTERNAL_CLASSES_DIR as the parent directory of this script's location.
+# This directory should contain your custom .jar files and .rnw files.
+_CANDIDATE_MY_EXT_CLASSES_ABS_PATH="${SCRIPT_DIR}/.."
+MY_EXTERNAL_CLASSES_DIR="$(cd "$_CANDIDATE_MY_EXT_CLASSES_ABS_PATH" && pwd 2>/dev/null)"
+
+if [ $? -ne 0 ] || [ -z "$MY_EXTERNAL_CLASSES_DIR" ] || [ ! -d "$MY_EXTERNAL_CLASSES_DIR" ]; then
+  echo "[CONFIG FATAL] Could not resolve external classes directory (MY_EXTERNAL_CLASSES_DIR)." >&2
+  echo "  Script location (SCRIPT_DIR):          '${SCRIPT_DIR}'" >&2
+  echo "  Attempted to find external classes at: '${_CANDIDATE_MY_EXT_CLASSES_ABS_PATH}' (parent of script dir)" >&2
+  echo "  This path does not resolve to a valid directory." >&2
+  exit 1
+fi
+echo "  [INFO] External classes (MY_EXTERNAL_CLASSES_DIR) resolved to: $MY_EXTERNAL_CLASSES_DIR"
+
+# Define the fully qualified name of a custom class to check for diagnostic purposes.
+# This helps verify that your custom JARs are being correctly processed.
+# IMPORTANT: Update this if your main custom class has a different name.
+CUSTOM_CLASS_TO_CHECK="pt.ipbeja.weather.WeatherDataReader"
+# Convert Java package dot notation to path slash notation for searching in JARs.
+CUSTOM_CLASS_PATH_TO_CHECK=$(echo "${CUSTOM_CLASS_TO_CHECK}" | sed 's/\./\//g').class
+echo "[CONFIG] Initialization complete."
+echo ""
+
+
+# --- Helper Functions ---
+
+# Function: collect_jars_from_dir
+# Description: Finds all .jar files within a given directory (and its subdirectories)
+#              and returns them as a colon-separated string.
+# Arguments:
+#   $1: search_dir - The directory to search for .jar files.
+# Output:
+#   Prints a colon-separated list of full paths to found .jar files.
+collect_jars_from_dir() {
+    local search_dir="$1"
+    local collected_jars_list=""
+    local jar_file_path=""
+    local found_count=0
+
+    if [ ! -d "$search_dir" ]; then
+        echo "    [DEBUG] collect_jars_from_dir: Directory '$search_dir' not found. Skipping." >&2
+        echo "$collected_jars_list" # Output empty string
+        return
+    fi
+
+    echo "    [DEBUG] collect_jars_from_dir: Searching for JARs in '$search_dir'..."
+    while IFS= read -r -d $'\0' jar_file_path; do
+        if [ -z "$collected_jars_list" ]; then
+            collected_jars_list="$jar_file_path"
+        else
+            collected_jars_list="${collected_jars_list}:${jar_file_path}"
+        fi
+        found_count=$((found_count + 1))
+    done < <(find "$search_dir" -name "*.jar" -type f -print0)
+
+    echo "    [INFO] Found $found_count JAR(s) in '$search_dir'."
+    echo "$collected_jars_list"
+}
+
+# Function: clean_path_string
+# Description: Cleans a colon-separated path string.
+clean_path_string() {
+    local path_to_clean="$1"
+    path_to_clean=$(echo "$path_to_clean" | sed -e 's/^[:]*//' -e 's/[:]*$//' -e 's/[:][:]*/:/g')
+    if [ -z "$path_to_clean" ]; then
+        path_to_clean="."
+    fi
+    echo "$path_to_clean"
+}
+
+# Function: check_class_in_jars
+# Description: Searches for a specific .class file entry within .jar files.
+check_class_in_jars() {
+    local search_dir="$1"
+    local class_path="$2"
+    local class_desc="$3"
+    local class_actually_found=0
+
+    echo "  [CHECK] Searching for '$class_desc' ($class_path) in JARs under '$search_dir'..."
+    if [ ! -d "$search_dir" ]; then # Should be already guaranteed by config, but good check
+        echo "    [ERROR] Directory '$search_dir' not found for class check." >&2
+        return 1
+    fi
+
+    while IFS= read -r -d $'\0' jar_file; do
+        if jar tf "$jar_file" 2>/dev/null | grep -q "^${class_path}$"; then
+            echo "    [FOUND] '$class_desc' in JAR: $jar_file"
+            class_actually_found=1
+        fi
+    done < <(find "$search_dir" -name "*.jar" -type f -print0)
+
+    if [ "$class_actually_found" -eq 0 ]; then
+        echo "    [NOT FOUND] '$class_desc' ($class_path) was not found in any JAR under '$search_dir'."
+        return 1
+    fi
+    return 0
+}
+
+
+# --- Phase 1: Initial Sanity Checks ---
+echo "[PHASE 1] Initial Sanity Checks..."
+# HOMERENEW and MY_EXTERNAL_CLASSES_DIR are now guaranteed to be valid directories
+# if the script reached this point due to checks in the Configuration section.
+
+# Check if Renew's main loader JAR is present and readable within HOMERENEW.
+if [ ! -r "${HOMERENEW}/de.renew.loader.jar" ]; then
+  echo "  [ERROR] Renew loader.jar not found or not readable at '${HOMERENEW}/de.renew.loader.jar'!" >&2
+  echo "  The HOMERENEW directory itself ('$HOMERENEW') was found, but 'de.renew.loader.jar' is missing or unreadable inside it." >&2
+  exit 1
+fi
+echo "  [OK] Renew loader.jar found and readable in '$HOMERENEW'."
+
+echo "  [INFO] External classes directory '$MY_EXTERNAL_CLASSES_DIR' was successfully resolved."
+echo "  Contents of MY_EXTERNAL_CLASSES_DIR (your project files):"
+ls -lA "$MY_EXTERNAL_CLASSES_DIR" # List contents for user verification.
+echo ""
+
+
+# --- Phase 2: Classpath (CP) Construction ---
+echo "[PHASE 2] Constructing Classpath (CP)..."
+CP_BASE_DIRS="${HOMERENEW}" # HOMERENEW is absolute
+if [ -d "${HOMERENEW}/lib" ]; then
+    CP_BASE_DIRS="${CP_BASE_DIRS}:${HOMERENEW}/lib"
+fi
+if [ -d "${HOMERENEW}/libs" ]; then
+    is_libs_different_from_lib=true
+    if [ -e "${HOMERENEW}/lib" ] && [ "$(cd "${HOMERENEW}/lib" && pwd)" = "$(cd "${HOMERENEW}/libs" && pwd)" ]; then
+        is_libs_different_from_lib=false
+    fi
+    if $is_libs_different_from_lib; then
+         CP_BASE_DIRS="${CP_BASE_DIRS}:${HOMERENEW}/libs"
+    fi
+fi
+CP_BASE_DIRS="${CP_BASE_DIRS}:${MY_EXTERNAL_CLASSES_DIR}" # MY_EXTERNAL_CLASSES_DIR is absolute
+
+echo "  Collecting JARs for Classpath..."
+homerenew_jars=$(collect_jars_from_dir "$HOMERENEW")
+my_external_jars=$(collect_jars_from_dir "$MY_EXTERNAL_CLASSES_DIR")
+
+CP="${CP_BASE_DIRS}"
+if [ -n "$homerenew_jars" ]; then
+    CP="${CP}:${homerenew_jars}"
+fi
+if [ -n "$my_external_jars" ]; then
+    CP="${CP}:${my_external_jars}"
+fi
+
+CP=$(clean_path_string "$CP")
+echo "  [OK] Final Classpath (CP): $CP"
+echo ""
+
+
+# --- Phase 3: Module Path (MODULE_PATH) Construction ---
+echo "[PHASE 3] Constructing Module Path (MODULE_PATH)..."
+MODULE_PATH_DIRS="${HOMERENEW}" # HOMERENEW is absolute
+if [ -d "${HOMERENEW}/lib" ]; then
+    MODULE_PATH_DIRS="${MODULE_PATH_DIRS}:${HOMERENEW}/lib"
+fi
+if [ -d "${HOMERENEW}/libs" ]; then
+    is_libs_different_mp=true
+    resolved_libs_path="$(cd "${HOMERENEW}/libs" && pwd)"
+    if [ -e "${HOMERENEW}/lib" ] && [ "$(cd "${HOMERENEW}/lib" && pwd)" = "$resolved_libs_path" ]; then
+        is_libs_different_mp=false
+    fi
+    # Check if resolved_libs_path is already part of MODULE_PATH_DIRS
+    # by comparing canonical paths.
+    is_already_present=false
+    IFS=':' read -ra ADDR <<< "$MODULE_PATH_DIRS"
+    for p in "${ADDR[@]}"; do
+        if [ -d "$p" ] && [ "$(cd "$p" && pwd)" = "$resolved_libs_path" ]; then
+            is_already_present=true
+            break
+        fi
+    done
+
+    if $is_libs_different_mp && ! $is_already_present; then
+         MODULE_PATH_DIRS="${MODULE_PATH_DIRS}:${HOMERENEW}/libs" # Add original, not resolved
+    fi
+fi
+
+# Add external classes directory to module path if it's distinct.
+# MY_EXTERNAL_CLASSES_DIR is already an absolute, canonical path.
+is_my_external_already_present=false
+IFS=':' read -ra ADDR <<< "$MODULE_PATH_DIRS"
+for p in "${ADDR[@]}"; do
+    if [ -d "$p" ] && [ "$(cd "$p" && pwd)" = "$MY_EXTERNAL_CLASSES_DIR" ]; then
+        is_my_external_already_present=true
+        break
+    fi
+done
+if ! $is_my_external_already_present; then
+    MODULE_PATH_DIRS="${MODULE_PATH_DIRS}:${MY_EXTERNAL_CLASSES_DIR}"
+fi
+
+MODULE_PATH=$(clean_path_string "$MODULE_PATH_DIRS")
+echo "  [OK] Final Module Path: $MODULE_PATH"
+echo ""
+
+
+# --- Phase 4: Java Command Setup ---
+echo "[PHASE 4] Setting up Java Command..."
+JAVACMD="java"
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  JAVACMD="$JAVA_HOME/bin/java"
+  echo "  [INFO] Using Java from JAVA_HOME: $JAVACMD"
+else
+  echo "  [INFO] Using Java from system PATH: $JAVACMD (JAVA_HOME not set or its 'bin/java' not found/executable)"
+  echo "  [INFO] To use a specific Java version (11+ recommended), set JAVA_HOME."
+fi
+
+echo "  [INFO] Checking Java version..."
+if "$JAVACMD" -version 2>&1 | grep -q "version"; then
+    JAVA_VERSION_OUTPUT=$("$JAVACMD" -version 2>&1)
+    echo "    ----- Java Version Output -----"
+    echo "$JAVA_VERSION_OUTPUT" | sed 's/^/    /'
+    echo "    -----------------------------"
+    
+    if echo "$JAVA_VERSION_OUTPUT" | grep -qE "version \"(1\.[1-8]|9|10)\."; then
+        echo "    [WARNING] Detected Java version older than 11. Java 11 or newer is required for java.net.http.HttpClient." >&2
+        echo "    [WARNING] Please set JAVA_HOME to a JDK 11+ installation or update your system's default Java." >&2
+    elif echo "$JAVA_VERSION_OUTPUT" | grep -qE "version \"(1[1-9]|[2-9][0-9])"; then # e.g. "11", "17.0.1"
+        echo "    [INFO] Java version appears to be 11 or newer. This should be compatible."
+    else
+        echo "    [WARNING] Could not definitively determine if Java version is 11+ or older from the output." >&2
+        echo "    [WARNING] The script will proceed, but if 'java.net.http.HttpClient' related errors occur," >&2
+        echo "    [WARNING] please ensure you are using Java 11 or a newer version." >&2
+    fi
+else
+    echo "    [ERROR] Could not determine Java version using '$JAVACMD -version'." >&2
+    echo "    [ERROR] Please ensure Java (11+ recommended) is installed and in your PATH or JAVA_HOME is set correctly." >&2
+    # exit 1 # Consider exiting if Java is absolutely critical and version unknown
+fi
+echo ""
+
+
+# --- Phase 5: Pre-flight Diagnostics ---
+echo "[PHASE 5] Pre-flight Diagnostics..."
+echo "  Configuration Summary:"
+echo "    HOMERENEW (Renew Installation): $HOMERENEW"
+echo "    MY_EXTERNAL_CLASSES_DIR (Your Project): $MY_EXTERNAL_CLASSES_DIR"
+echo "    Renew's 'de.renew.netPath' property will be set to: $MY_EXTERNAL_CLASSES_DIR"
+echo "    Script arguments received by this script: $@"
+echo ""
+
+echo "  Classpath & Module Path Verification:"
+echo "    Final Classpath (CP) that will be used by Java:"
+echo "      $CP"
+echo "    Final Module Path (MODULE_PATH) that will be used by Java:"
+echo "      $MODULE_PATH"
+echo ""
+
+echo "  Critical Class Presence Checks:"
+check_class_in_jars "$HOMERENEW" "de/renew/net/NetInstanceImpl.class" "Renew Core (NetInstanceImpl)"
+RENEW_CORE_CLASS_FOUND=$?
+
+check_class_in_jars "$MY_EXTERNAL_CLASSES_DIR" "$CUSTOM_CLASS_PATH_TO_CHECK" "Custom Class ($CUSTOM_CLASS_TO_CHECK)"
+CUSTOM_CLASS_FOUND=$?
+
+if [ $RENEW_CORE_CLASS_FOUND -ne 0 ]; then
+    echo "  [CRITICAL ERROR] Renew core class 'de.renew.net.NetInstanceImpl' was NOT FOUND in HOMERENEW JARs." >&2
+    echo "  This will likely cause a NoClassDefFoundError. Please check your Renew installation at $HOMERENEW." >&2
+    # exit 1
+fi
+if [ $CUSTOM_CLASS_FOUND -ne 0 ]; then
+    echo "  [CRITICAL WARNING] Your custom class '$CUSTOM_CLASS_TO_CHECK' was NOT FOUND in any JAR under '$MY_EXTERNAL_CLASSES_DIR'." >&2
+    echo "  This will likely cause a 'No such class' or 'ClassNotFoundException' error from Renew." >&2
+    echo "  Verify your JAR is correctly built, contains the class with the correct package structure, and is placed in '$MY_EXTERNAL_CLASSES_DIR'." >&2
+fi
+echo ""
+
+
+# --- Phase 6: Renew Execution ---
+echo "[PHASE 6] Preparing to Launch Renew..."
+
+_found_rnw_files_in_parent_dir=0
+if find "$MY_EXTERNAL_CLASSES_DIR" -maxdepth 1 -name '*.rnw' -print -quit 2>/dev/null | grep -q . ; then
+    _found_rnw_files_in_parent_dir=1
+    echo "  [INFO] Found .rnw files in '$MY_EXTERNAL_CLASSES_DIR'. They will be passed to Renew."
+else
+    echo "  [INFO] No .rnw files found directly in '$MY_EXTERNAL_CLASSES_DIR'. Renew will start without opening specific files from there initially (unless passed as arguments to this script)."
+fi
+
+JAVA_CMD_BASE_ARGS="--add-modules java.net.http \
+         -Xmx512M \
+         -Dde.renew.netPath=\"$MY_EXTERNAL_CLASSES_DIR\" \
+         -classpath \"$CP\" \
+         -p \"$MODULE_PATH\" \
+         -m \"de.renew.loader/de.renew.plugin.PluginManager\" \
+         gui"
+
+RNW_FILES_ARG_STRING=""
+if [ "$_found_rnw_files_in_parent_dir" -eq 1 ]; then
+    # $MY_EXTERNAL_CLASSES_DIR is an absolute path. Quotes handle spaces in path.
+    # Glob *.rnw should be expanded by eval.
+    RNW_FILES_ARG_STRING="\"${MY_EXTERNAL_CLASSES_DIR}\"/*.rnw"
+fi
+
+echo "  [EXEC] Launching Renew. Command structure (placeholders for long paths):"
+echo "    $JAVACMD [JVM_OPTIONS] -Dde.renew.netPath=\"...\" -classpath [CP] -p [MP] -m de.renew.loader/... gui [RNW_FILES] [SCRIPT_ARGS]"
+echo "    (Actual paths are absolute and printed in Phase 5 diagnostics if needed.)"
+
+COMMAND_TO_EVAL="$JAVACMD $JAVA_CMD_BASE_ARGS"
+if [ "$_found_rnw_files_in_parent_dir" -eq 1 ]; then
+    COMMAND_TO_EVAL="$COMMAND_TO_EVAL $RNW_FILES_ARG_STRING"
+fi
+COMMAND_TO_EVAL="$COMMAND_TO_EVAL \"\$@\"" # Append script arguments, ensuring eval expands them correctly
+
+echo "  [DEBUG] Full command to be evaluated:"
+echo "    $COMMAND_TO_EVAL"
+eval "$COMMAND_TO_EVAL"
+RENEW_EXIT_CODE=$?
+
+echo ""
+echo "[PHASE 7] Renew execution finished with exit code $RENEW_EXIT_CODE."
+exit $RENEW_EXIT_CODE

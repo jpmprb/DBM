@@ -1,0 +1,14 @@
+package samples.call;
+class EnumBag for net enumbag
+implements
+  java.util.Enumeration
+{
+  boolean hasMoreElements() {
+    this:hasMoreElements(instance);
+    this:result(instance,return);
+  }
+  java.lang.Object nextElement() {
+    this:nextElement(instance);
+    this:result(instance,return);
+  }
+}

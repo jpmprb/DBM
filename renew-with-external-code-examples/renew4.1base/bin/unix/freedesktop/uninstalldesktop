@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Uninstall.
+while [ "X-" == `echo "X$1" | cut -c1-2` ]; do
+    case "$1" in
+    "-v"|"--verbose")
+        verbose=true			# used in configuration section
+        echo "OPTIONS: Verbose"
+        shift
+        ;;
+    "-h"|"--help")
+        showhelp=true
+        break
+        ;;
+    "-")
+        break
+        ;;
+    *)
+        echo "$0: unknown option: $1"
+        showhelp=true
+        break
+        ;;
+    esac
+done
+
+## Dekstop file uninstall
+if [ "$verbose" = "true" ]; then
+  echo "Uninstalling desktop file: Renew.desktop"
+fi
+rm ~/.local/share/applications/Renew.desktop
+update-desktop-database $HOME/.local/share/applications/
+
+
+## Mime types configuration
+if [ "$verbose" = "true" ]; then
+  echo "Uninstalling mime configuration file: renew.xml and invoke update of mime database"
+fi
+rm -i $HOME/.local/share/mime/packages/renew.xml
+update-mime-database $HOME/.local/share/mime
+
+## Unregister desktop configuration file Renew.desktop
+xdg-mime uninstall Renew.desktop
+
+## Uninstall icon images
+for size in 16 24 32 48 64 128 256 512
+  do
+    if [ "$verbose" = "true" ]; then
+      echo "Uninstalling application icon: " icons/$size"x"$size/apps/renew.png
+    fi
+    xdg-icon-resource uninstall --size $size icons/$size"x"$size/apps/renew.png
+    for file in icons/$size"x"$size/mimetypes/*
+      do
+        if [ "$verbose" = "true" ]; then
+	  echo "Uninstalling icon file: $file"
+        fi
+        xdg-icon-resource uninstall --size $size $file
+    done 
+done

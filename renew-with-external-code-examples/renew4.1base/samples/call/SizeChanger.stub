@@ -1,0 +1,11 @@
+package samples.call;
+class SizeChanger for net sizechanger
+  implements java.awt.event.ActionListener
+{
+  SizeChanger(java.awt.Frame frame) {
+    this:setFrame(frame);
+  }
+  break void actionPerformed(java.awt.event.ActionEvent event) {
+    this:putEvent(event);
+  }
+}
