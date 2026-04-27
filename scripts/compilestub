@@ -1,0 +1,63 @@
+#!/bin/bash
+# ==============================================================================
+# SCRIPT DE GERAÇÃO DE STUBS PARA RENEW (Versão Otimizada - compilestub)
+# ==============================================================================
+# O QUE ESTA SCRIPT FAZ:
+# - Encontra a instalação do Renew.
+# - Adiciona os ficheiros .jar ao Classpath.
+# - Chama a classe 'de.renew.call.StubCompiler' do Renew para gerar os 
+#   ficheiros Stub necessários para ligar código Java às Redes de Petri.
+# ==============================================================================
+
+echo "========================================================"
+echo " A GERAR STUBS DO RENEW (compilestub)                   "
+echo "========================================================"
+
+# 1. Definir e verificar caminhos
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Atualizado para bater certo com a estrutura lado-a-lado
+_HOMERENEW_REL_PATH="../renew4.2" 
+HOMERENEW="$(cd "${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}" && pwd 2>/dev/null)"
+
+if [ -z "$HOMERENEW" ] || [ ! -d "$HOMERENEW" ]; then
+  echo "[ERRO FATAL] Instalação do Renew não encontrada em: ${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}" >&2
+  exit 1
+fi
+
+echo "  -> Renew encontrado em: $HOMERENEW"
+
+# 2. Construir o Classpath (CP) de forma segura
+CP="."
+if [ -n "$CLASSPATH" ]; then
+  CP="$CLASSPATH:."
+fi
+
+# Procurar todos os JARs no Renew (com suporte para espaços nos caminhos)
+while IFS= read -r -d $'\0' jar_file; do
+  CP="${CP}:${jar_file}"
+done < <(find "$HOMERENEW" -name "*.jar" -type f -print0)
+
+# Limpar caminhos duplicados (ex: ::)
+CP=$(echo "$CP" | sed -e 's/^[:]*//' -e 's/[:]*$//' -e 's/[:][:]*/:/g')
+
+# 3. Descobrir o comando Java (java)
+JAVACMD="java"
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  JAVACMD="$JAVA_HOME/bin/java"
+fi
+
+echo "  -> Comando Java configurado: $JAVACMD"
+echo "--------------------------------------------------------"
+
+# 4. Invocar o compilador de stubs do Renew
+"$JAVACMD" -cp "$CP" de.renew.call.StubCompiler "$@"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "[SUCESSO] Geração de Stubs terminada."
+else
+    echo "[ERRO] Falha ao gerar os Stubs. Verifica a sintaxe ou dependências." >&2
+fi
+
+exit $EXIT_CODE

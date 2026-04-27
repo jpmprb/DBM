@@ -1,0 +1,196 @@
+#!/bin/bash
+# ==============================================================================
+# SCRIPT DE EXECUÇÃO DO RENEW COM CÓDIGO EXTERNO (Versão 4.1 - Fix ClassLoader)
+# ==============================================================================
+# COMO USAR:
+# 1. Abre o terminal.
+# 2. Navega até à pasta do teu projeto (ex: cd 02-weather-simple).
+# 3. Executa a script chamando o caminho onde ela está (ex: ../../scripts/renew-ext).
+#
+# O QUE ESTA SCRIPT FAZ:
+# - Deteta onde o Renew está instalado e a diretoria atual do terminal.
+# - Protege a visibilidade dos módulos do Java (JPMS).
+# - Passa o código do teu projeto diretamente para o motor do Renew 
+#   (usando a propriedade de.renew.classPath) evitando falhas de dependência.
+# - Carrega ficheiros .rnw e bibliotecas externas (.jar) em conformidade.
+# ==============================================================================
+
+echo "========================================================"
+echo " INICIANDO O RENEW 4.2 COM SUPORTE A PROJETOS EXTERNOS  "
+echo "========================================================"
+echo ""
+
+# ------------------------------------------------------------------------------
+# FASE 0: CONFIGURAÇÃO DE PASTAS E CAMINHOS
+# ------------------------------------------------------------------------------
+echo "[FASE 0] A descobrir a localização das pastas..."
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ $? -ne 0 ] || [ -z "$SCRIPT_DIR" ] || [ ! -d "$SCRIPT_DIR" ]; then
+  echo "[ERRO FATAL] Não foi possível determinar a localização desta script." >&2
+  exit 1
+fi
+
+_HOMERENEW_REL_PATH="../renew4.2"
+_CANDIDATE_HOMERENEW_ABS_PATH="${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}"
+
+HOMERENEW="$(cd "$_CANDIDATE_HOMERENEW_ABS_PATH" && pwd 2>/dev/null)"
+if [ $? -ne 0 ] || [ -z "$HOMERENEW" ] || [ ! -d "$HOMERENEW" ]; then
+  echo "[ERRO FATAL] A pasta do Renew não foi encontrada em: $_CANDIDATE_HOMERENEW_ABS_PATH" >&2
+  exit 1
+fi
+echo "  -> Instalação do Renew (HOMERENEW): $HOMERENEW"
+
+# A pasta do teu projeto será sempre o local de onde executas o comando
+MY_EXTERNAL_CLASSES_DIR="$PWD"
+if [ -z "$MY_EXTERNAL_CLASSES_DIR" ] || [ ! -d "$MY_EXTERNAL_CLASSES_DIR" ]; then
+  echo "[ERRO FATAL] Não foi possível ler a pasta atual do terminal." >&2
+  exit 1
+fi
+echo "  -> Pasta do teu Projeto (MY_EXTERNAL_CLASSES_DIR): $MY_EXTERNAL_CLASSES_DIR"
+echo ""
+
+# ------------------------------------------------------------------------------
+# FUNÇÕES AUXILIARES
+# ------------------------------------------------------------------------------
+collect_jars_from_dir() {
+    local search_dir="$1"
+    local collected_jars_list=""
+    local jar_file_path=""
+
+    if [ -d "$search_dir" ]; then
+        while IFS= read -r -d $'\0' jar_file_path; do
+            if [ -z "$collected_jars_list" ]; then
+                collected_jars_list="$jar_file_path"
+            else
+                collected_jars_list="${collected_jars_list}:${jar_file_path}"
+            fi
+        done < <(find "$search_dir" -name "*.jar" -type f -print0)
+    fi
+    echo "$collected_jars_list"
+}
+
+clean_path_string() {
+    local path_to_clean="$1"
+    path_to_clean=$(echo "$path_to_clean" | sed -e 's/^[:]*//' -e 's/[:]*$//' -e 's/[:][:]*/:/g')
+    [ -z "$path_to_clean" ] && path_to_clean="."
+    echo "$path_to_clean"
+}
+
+# ------------------------------------------------------------------------------
+# FASE 1: VERIFICAÇÕES DE SEGURANÇA
+# ------------------------------------------------------------------------------
+echo "[FASE 1] Verificação de segurança aos ficheiros principais..."
+if [ ! -r "${HOMERENEW}/de.renew.loader.jar" ]; then
+  echo "  [ERRO] O ficheiro 'de.renew.loader.jar' não foi encontrado dentro da pasta do Renew!" >&2
+  exit 1
+fi
+echo "  -> Ficheiro Loader do Renew encontrado. OK."
+echo ""
+
+# ------------------------------------------------------------------------------
+# FASE 2: PREPARAÇÃO DO CLASSPATH INTERNO DO RENEW
+# É aqui que indicamos o teu código ao Renew, protegendo-o do Java base.
+# ------------------------------------------------------------------------------
+echo "[FASE 2] A configurar o Classpath interno do simulador..."
+
+RENEW_CUSTOM_CP="${MY_EXTERNAL_CLASSES_DIR}"
+my_external_jars=$(collect_jars_from_dir "$MY_EXTERNAL_CLASSES_DIR")
+
+if [ -n "$my_external_jars" ]; then
+    RENEW_CUSTOM_CP="${RENEW_CUSTOM_CP}:${my_external_jars}"
+fi
+RENEW_CUSTOM_CP=$(clean_path_string "$RENEW_CUSTOM_CP")
+
+echo "  -> Código externo mapeado e pronto a injetar."
+echo ""
+
+# ------------------------------------------------------------------------------
+# FASE 3: CONSTRUÇÃO DO SYSTEM CLASSPATH E MODULE PATH PARA O JAVA BASE
+# Garantimos que o Java apenas carrega o que é absolutamente necessário.
+# ------------------------------------------------------------------------------
+echo "[FASE 3] A construir as raízes do Sistema Java..."
+
+# O Classpath do sistema fica apenas com as bibliotecas nativas de apoio do Renew (pasta libs)
+CP=""
+if [ -d "${HOMERENEW}/libs" ]; then
+    CP=$(collect_jars_from_dir "${HOMERENEW}/libs")
+fi
+CP=$(clean_path_string "$CP")
+
+# O Module Path regista onde estão os plugins oficiais, MAS NÃO o teu projeto
+MODULE_PATH_DIRS="${HOMERENEW}"
+[ -d "${HOMERENEW}/lib" ] && MODULE_PATH_DIRS="${MODULE_PATH_DIRS}:${HOMERENEW}/lib"
+
+if [ -d "${HOMERENEW}/libs" ]; then
+    resolved_libs_path="$(cd "${HOMERENEW}/libs" && pwd)"
+    if [[ ! "$MODULE_PATH_DIRS" == *"$resolved_libs_path"* ]]; then
+         MODULE_PATH_DIRS="${MODULE_PATH_DIRS}:${HOMERENEW}/libs"
+    fi
+fi
+MODULE_PATH=$(clean_path_string "$MODULE_PATH_DIRS")
+
+echo "  -> Caminhos do sistema Java criados com segurança."
+echo ""
+
+# ------------------------------------------------------------------------------
+# FASE 4: CONFIGURAÇÃO DO JAVA
+# ------------------------------------------------------------------------------
+echo "[FASE 4] A validar a versão de Java instalada..."
+JAVACMD="java"
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  JAVACMD="$JAVA_HOME/bin/java"
+fi
+
+if "$JAVACMD" -version 2>&1 | grep -qE "version \"(1[1-9]|[2-9][0-9])"; then
+    echo "  -> Java 11 ou superior detetado. OK."
+else
+    echo "  [AVISO] Poderás não estar a usar o Java 11+. O Renew precisa de Java recente." >&2
+fi
+echo ""
+
+# ------------------------------------------------------------------------------
+# FASE 5: PREPARAÇÃO PARA O ARRANQUE (RENEW)
+# ------------------------------------------------------------------------------
+echo "[FASE 5] A arrancar o motor do Renew..."
+
+_found_rnw_files=0
+if find "$MY_EXTERNAL_CLASSES_DIR" -maxdepth 1 -name '*.rnw' -print -quit 2>/dev/null | grep -q . ; then
+    _found_rnw_files=1
+    echo "  -> Ficheiros .rnw detetados na pasta atual. Vão ser abertos automaticamente."
+else
+    echo "  -> Nenhum ficheiro .rnw detetado. A abrir ambiente de trabalho limpo."
+fi
+
+# NOTA: O segredo está na propriedade "-Dde.renew.classPath". 
+# É ela que funde as tuas classes com o motor interno sem provocar conflitos.
+JAVA_CMD_BASE_ARGS="--add-modules java.net.http \
+         -Xmx512M \
+         -Dde.renew.netPath=\"$MY_EXTERNAL_CLASSES_DIR\" \
+         -Dde.renew.classPath=\"$RENEW_CUSTOM_CP\" \
+         -classpath \"$CP\" \
+         -p \"$MODULE_PATH\" \
+         -m \"de.renew.loader/de.renew.plugin.PluginManager\" \
+         gui"
+
+RNW_FILES_ARG_STRING=""
+if [ "$_found_rnw_files" -eq 1 ]; then
+    RNW_FILES_ARG_STRING="\"${MY_EXTERNAL_CLASSES_DIR}\"/*.rnw"
+fi
+
+COMMAND_TO_EVAL="$JAVACMD $JAVA_CMD_BASE_ARGS"
+if [ "$_found_rnw_files" -eq 1 ]; then
+    COMMAND_TO_EVAL="$COMMAND_TO_EVAL $RNW_FILES_ARG_STRING"
+fi
+COMMAND_TO_EVAL="$COMMAND_TO_EVAL \"\$@\""
+
+echo "--------------------------------------------------------"
+echo " A EXECUTAR O RENEW... (A interface gráfica vai abrir)"
+echo "--------------------------------------------------------"
+
+eval "$COMMAND_TO_EVAL"
+RENEW_EXIT_CODE=$?
+
+echo ""
+echo "[FIM] O Renew foi encerrado (Código de saída: $RENEW_EXIT_CODE)."
+exit $RENEW_EXIT_CODE
