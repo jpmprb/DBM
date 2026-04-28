@@ -1,12 +1,15 @@
 #!/bin/bash
 # ==============================================================================
-# SCRIPT DE COMPILAÇÃO JAVA PARA RENEW (Versão Otimizada - jcompile)
+# SCRIPT DE COMPILAÇÃO JAVA PARA RENEW (Versão Recursiva com JARs Locais - jcompile)
 # ==============================================================================
 # O QUE ESTA SCRIPT FAZ:
-# - Encontra a instalação do Renew e adiciona todas as bibliotecas (.jar) 
-#   necessárias ao Classpath de compilação.
-# - Protege contra caminhos com espaços.
-# - Chama o compilador Java (javac) para compilar os teus ficheiros .java.
+# - Encontra a instalação do Renew e adiciona as suas bibliotecas ao Classpath.
+# - Procura e adiciona quaisquer ficheiros .jar na pasta de projeto atual 
+#   (e em subpastas como 'libs') ao Classpath de compilação.
+# - Protege contra caminhos e nomes de ficheiros com espaços.
+# - Se não forem passados argumentos, procura automaticamente todos os ficheiros
+#   .java na pasta onde é chamada e em todas as suas subpastas.
+# - Chama o compilador Java (javac) para compilar os ficheiros encontrados.
 # ==============================================================================
 
 echo "========================================================"
@@ -15,7 +18,9 @@ echo "========================================================"
 
 # 1. Definir e verificar caminhos
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORK_DIR="$(pwd)" # Regista a pasta onde o utilizador executou o comando
 
+echo " -> A verificar instalação do Renew..."
 # Atualizado para bater certo com a estrutura lado-a-lado
 _HOMERENEW_REL_PATH="../renew4.2" 
 HOMERENEW="$(cd "${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}" && pwd 2>/dev/null)"
@@ -25,19 +30,32 @@ if [ -z "$HOMERENEW" ] || [ ! -d "$HOMERENEW" ]; then
   exit 1
 fi
 
-echo "  -> Renew encontrado em: $HOMERENEW"
+echo " -> Renew encontrado em: $HOMERENEW"
 
 # 2. Construir o Classpath (CP) de compilação de forma segura
+echo " -> A carregar bibliotecas (.jar) do Renew para o Classpath..."
 # A base é o diretório atual (.) e o CLASSPATH do sistema, se existir
 CP="."
 if [ -n "$CLASSPATH" ]; then
   CP="$CLASSPATH:."
 fi
 
-# Procurar todos os JARs de forma segura (suporta espaços nos nomes)
+# Procurar todos os JARs do Renew de forma segura
 while IFS= read -r -d $'\0' jar_file; do
   CP="${CP}:${jar_file}"
 done < <(find "$HOMERENEW" -name "*.jar" -type f -print0)
+
+# Procurar todos os JARs na pasta do projeto atual e suas subpastas (ex: libs/)
+echo " -> A procurar bibliotecas (.jar) locais no projeto atual..."
+LOCAL_JARS_COUNT=0
+while IFS= read -r -d $'\0' local_jar; do
+  CP="${CP}:${local_jar}"
+  ((LOCAL_JARS_COUNT++))
+done < <(find . -name "*.jar" -type f -print0)
+
+if [ $LOCAL_JARS_COUNT -gt 0 ]; then
+    echo "    Encontrada(s) $LOCAL_JARS_COUNT biblioteca(s) local/locais adicionada(s) ao Classpath."
+fi
 
 # Limpar formatação dupla do caminho
 CP=$(echo "$CP" | sed -e 's/^[:]*//' -e 's/[:]*$//' -e 's/[:][:]*/:/g')
@@ -48,17 +66,47 @@ if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
   JAVAC="$JAVA_HOME/bin/javac"
 fi
 
-echo "  -> Compilador configurado: $JAVAC"
+echo " -> Compilador configurado: $JAVAC"
 echo "--------------------------------------------------------"
 
-# 4. Compilar os ficheiros passados como argumento
-"$JAVAC" -classpath "$CP" "$@"
+# 4. Determinar quais os ficheiros .java a compilar
+JAVA_FILES=()
+
+# Se não foram passados ficheiros como argumento (comportamento automático)
+if [ $# -eq 0 ]; then
+    echo " -> A procurar ficheiros .java na pasta atual e em todas as subpastas..."
+    
+    # O comando 'find' procura de forma recursiva a partir da pasta atual (.).
+    while IFS= read -r -d $'\0' file; do
+        JAVA_FILES+=("$file")
+    done < <(find . -name "*.java" -type f -print0)
+
+    # Verifica se encontrou algum ficheiro
+    if [ ${#JAVA_FILES[@]} -eq 0 ]; then
+        echo "[AVISO] Não foi encontrado nenhum ficheiro .java na pasta: $WORK_DIR"
+        echo "[INFO] A compilação foi cancelada porque não há código fonte."
+        exit 0
+    fi
+    
+    echo " -> Encontrado(s) ${#JAVA_FILES[@]} ficheiro(s) .java para compilar."
+else
+    # Se o utilizador passou argumentos
+    echo " -> A utilizar o(s) ficheiro(s) especificado(s) pelo utilizador:"
+    echo "    $@"
+    JAVA_FILES=("$@")
+fi
+
+# 5. Executar a compilação
+echo " -> A iniciar compilação..."
+"$JAVAC" -classpath "$CP" "${JAVA_FILES[@]}"
 EXIT_CODE=$?
 
+# 6. Avaliar o resultado final
+echo "--------------------------------------------------------"
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "[SUCESSO] Compilação terminada sem erros."
+    echo "[SUCESSO] Compilação terminada sem erros. Os teus ficheiros .class estão prontos."
 else
-    echo "[ERRO] A compilação falhou. Verifica o código Java." >&2
+    echo "[ERRO] A compilação falhou. Verifica os erros de sintaxe no teu código Java apresentados acima." >&2
 fi
 
 exit $EXIT_CODE

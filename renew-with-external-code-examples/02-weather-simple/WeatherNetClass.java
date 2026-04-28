@@ -46,7 +46,7 @@ public class WeatherNetClass
                                  .submitAndWait(new Callable<Object>() {
       public Object call() throws RuntimeException {
         try {
-          de.renew.net.Net net = de.renew.net.Net.forName("weathernet");
+          de.renew.net.Net net = de.renew.net.Net.forName("weatherNet");
           net.setEarlyTokens(true);
           initNet(net, true);
           createConfirmation(de.renew.application.SimulatorPlugin.getCurrent().getCurrentEnvironment().getSimulator().currentStepIdentifier());

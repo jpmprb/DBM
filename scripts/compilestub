@@ -5,7 +5,8 @@
 # O QUE ESTA SCRIPT FAZ:
 # - Encontra a instalação do Renew.
 # - Adiciona os ficheiros .jar ao Classpath.
-# - Chama a classe 'de.renew.call.StubCompiler' do Renew para gerar os 
+# - Procura por ficheiros .stub na pasta de trabalho atual (caso nenhum seja indicado).
+# - Chama a classe 'de.renew.call.StubCompiler' do Renew para gerar os
 #   ficheiros Stub necessários para ligar código Java às Redes de Petri.
 # ==============================================================================
 
@@ -15,49 +16,71 @@ echo "========================================================"
 
 # 1. Definir e verificar caminhos
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORK_DIR="$(pwd)" # Pasta de onde a script foi chamada pelo utilizador
 
 # Atualizado para bater certo com a estrutura lado-a-lado
-_HOMERENEW_REL_PATH="../renew4.2" 
+_HOMERENEW_REL_PATH="../renew4.2"
 HOMERENEW="$(cd "${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}" && pwd 2>/dev/null)"
 
+# Verifica se a pasta do Renew existe
 if [ -z "$HOMERENEW" ] || [ ! -d "$HOMERENEW" ]; then
-  echo "[ERRO FATAL] Instalação do Renew não encontrada em: ${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}" >&2
-  exit 1
+    echo "[ERRO] Diretório do Renew não encontrado em: ${SCRIPT_DIR}/${_HOMERENEW_REL_PATH}"
+    echo "Verifica se a pasta renew4.2 existe na localização correta."
+    exit 1
 fi
 
-echo "  -> Renew encontrado em: $HOMERENEW"
+echo " -> Renew encontrado em: $HOMERENEW"
+echo " -> Comando Java configurado: java"
 
-# 2. Construir o Classpath (CP) de forma segura
-CP="."
-if [ -n "$CLASSPATH" ]; then
-  CP="$CLASSPATH:."
-fi
+# 2. Construir o Classpath (adicionar os .jar necessários)
+# Nota: É necessário adaptar as pastas dependendo de onde os .jar do Renew estão guardados
+CP=""
+for jar in "$HOMERENEW"/*.jar "$HOMERENEW"/libs/*.jar "$HOMERENEW"/plugins/*.jar; do
+    if [ -f "$jar" ]; then
+        CP="$CP:$jar"
+    fi
+done
+# Remover o primeiro ':' extra
+CP="${CP#:}"
 
-# Procurar todos os JARs no Renew (com suporte para espaços nos caminhos)
-while IFS= read -r -d $'\0' jar_file; do
-  CP="${CP}:${jar_file}"
-done < <(find "$HOMERENEW" -name "*.jar" -type f -print0)
-
-# Limpar caminhos duplicados (ex: ::)
-CP=$(echo "$CP" | sed -e 's/^[:]*//' -e 's/[:]*$//' -e 's/[:][:]*/:/g')
-
-# 3. Descobrir o comando Java (java)
-JAVACMD="java"
-if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
-  JAVACMD="$JAVA_HOME/bin/java"
-fi
-
-echo "  -> Comando Java configurado: $JAVACMD"
+# 3. Determinar os ficheiros a compilar
 echo "--------------------------------------------------------"
 
-# 4. Invocar o compilador de stubs do Renew
-"$JAVACMD" -cp "$CP" de.renew.call.StubCompiler "$@"
-EXIT_CODE=$?
+# Se o utilizador não passou argumentos (número de argumentos = 0)
+if [ $# -eq 0 ]; then
+    echo " -> Nenhum ficheiro especificado. A procurar ficheiros .stub na pasta atual..."
+    
+    # Ativa a opção nullglob para que *.stub não retorne texto literal se não houver ficheiros
+    shopt -s nullglob
+    STUB_FILES=( *.stub )
+    shopt -u nullglob # Desativa após a utilização por segurança
 
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "[SUCESSO] Geração de Stubs terminada."
+    # Verifica se o array tem elementos
+    if [ ${#STUB_FILES[@]} -eq 0 ]; then
+        echo "[AVISO] Não foi encontrado nenhum ficheiro .stub em: $WORK_DIR"
+        echo "[INFO] Podes também passar os ficheiros como argumento:"
+        echo "       Exemplo: ../../scripts/compilestub ficheiro.stub"
+        exit 0
+    fi
+    
+    echo " -> Ficheiro(s) encontrado(s): ${STUB_FILES[*]}"
 else
-    echo "[ERRO] Falha ao gerar os Stubs. Verifica a sintaxe ou dependências." >&2
+    # Se o utilizador passou argumentos, usamos esses ficheiros
+    echo " -> Ficheiro(s) especificado(s) pelo utilizador: $@"
+    STUB_FILES=( "$@" )
 fi
 
-exit $EXIT_CODE
+# 4. Executar o Compilador de Stubs do Renew
+echo " -> A iniciar compilação..."
+
+java -cp "$CP" de.renew.call.StubCompiler "${STUB_FILES[@]}"
+EXIT_CODE=$?
+
+# 5. Verificar o resultado final
+echo "--------------------------------------------------------"
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "[SUCESSO] Geração de Stubs terminada sem erros."
+else
+    echo "[ERRO] Falha ao gerar os Stubs. Verifica a sintaxe, dependências ou a mensagem acima."
+    exit 1
+fi
