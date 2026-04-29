@@ -1,5 +1,5 @@
 11 
-    de.renew.gui.CPNDrawing 21 
+    de.renew.gui.CPNDrawing 22 
         de.renew.gui.TransitionFigure "attributes" "attributes" 3 "FigureWithID" "Int" 1 "FrameColor" "Color" 0 0 0 255 "FillColor" "Color" 112 219 147 255 328 181 24 16 NULL  
         de.renew.gui.PlaceFigure "attributes" "attributes" 3 "FigureWithID" "Int" 2 "FrameColor" "Color" 0 0 0 255 "FillColor" "Color" 112 219 147 255 329 113 20 20 NULL  
         de.renew.gui.ArcConnection "attributes" "attributes" 1 "FigureWithID" "Int" 3 2 339 133 339 181 NULL 
@@ -53,6 +53,9 @@
         de.renew.gui.CPNTextFigure "attributes" "attributes" 4 "FrameColor" "Color" 255 199 158 255 "FigureWithID" "Int" 44 "TextAlignment" "Int" 1 "FillColor" "Color" 255 199 158 255 297 18 "init" "SansSerif" 1 12 0 REF 12 
             CH.ifa.draw.standard.OffsetLocator -31 0 
                 CH.ifa.draw.standard.RelativeLocator 0.5 0.5   2  
-        de.renew.gui.CPNTextFigure "attributes" "attributes" 4 "FrameColor" "Color" 255 199 158 255 "FigureWithID" "Int" 46 "TextAlignment" "Int" 1 "FillColor" "Color" 255 199 158 255 444 83 "weatherNet object" "SansSerif" 1 12 0 REF 25 
-            CH.ifa.draw.standard.OffsetLocator 51 23 
+        de.renew.gui.CPNTextFigure "attributes" "attributes" 4 "FrameColor" "Color" 255 199 158 255 "FigureWithID" "Int" 47 "TextAlignment" "Int" 1 "FillColor" "Color" 255 199 158 255 297 244 "end" "SansSerif" 1 12 0 REF 11 
+            CH.ifa.draw.standard.OffsetLocator -32 -1 
+                CH.ifa.draw.standard.RelativeLocator 0.5 0.5   2  
+        de.renew.gui.CPNTextFigure "attributes" "attributes" 4 "FrameColor" "Color" 255 199 158 255 "FigureWithID" "Int" 46 "TextAlignment" "Int" 1 "FillColor" "Color" 255 199 158 255 466 61 "weatherNet object" "SansSerif" 1 12 0 REF 25 
+            CH.ifa.draw.standard.OffsetLocator 73 1 
                 CH.ifa.draw.standard.RelativeLocator 0.5 0.5   2  NULL  

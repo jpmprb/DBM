@@ -1,0 +1,51 @@
+<diagram program="umletino" version="15.1"><zoom_level>10</zoom_level><element><id>UMLClass</id><coordinates><x>190</x><y>270</y><w>270</w><h>100</h></coordinates><panel_attributes>&lt;&lt;net&gt;&gt;
+weatherStart
+bg=green
+fg=black</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>600</x><y>110</y><w>330</w><h>340</h></coordinates><panel_attributes>&lt;&lt;Java&gt;&gt;
+WeatherNet
+bg=#FFFF99
+--
+public class WeatherNetClass
+     extends de.renew.net.NetInstanceImpl
+{
+   ...
+   public void receiveData(final String ppdata) {
+      final Object vvdata=ppdata;
+      SimulationThreadPool.getCurrent().executeAndWait(
+              new Runnable() {
+       public void run() {
+            de.renew.unify.Tuple inTuple;
+            de.renew.unify.Tuple outTuple;
+            inTuple=new de.renew.unify.Tuple(1);
+            ...
+   }
+  public WeatherNetClass()
+  {
+  ...
+  }
+}
+          
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>190</x><y>120</y><w>270</w><h>130</h></coordinates><panel_attributes>&lt;&lt;stub&gt;&gt;
+WeatherNetClass
+bg=orange
+--
+class WeatherNetClass for net weathernet {
+  void receiveData(String data) {
+    this:receiveData(data);
+  }
+}</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>450</x><y>190</y><w>170</w><h>40</h></coordinates><panel_attributes>lt=.&gt;
+&lt;&lt;compiles to&gt;&gt;</panel_attributes><additional_attributes>10;20;150;20</additional_attributes></element><element><id>UMLClass</id><coordinates><x>630</x><y>520</y><w>270</w><h>90</h></coordinates><panel_attributes>&lt;&lt;net&gt;&gt;
+weathernet
+bg=green
+fg=black</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>780</x><y>440</y><w>80</w><h>100</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;creates&gt;&gt;</panel_attributes><additional_attributes>10;80;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>450</x><y>290</y><w>170</w><h>40</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;creates&gt;&gt;</panel_attributes><additional_attributes>150;20;10;20</additional_attributes></element><element><id>Relation</id><coordinates><x>420</x><y>400</y><w>200</w><h>130</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;calls&gt;&gt;
+fg=red</panel_attributes><additional_attributes>180;20;10;20;10;110</additional_attributes></element><element><id>Relation</id><coordinates><x>200</x><y>360</y><w>80</w><h>170</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;creates&gt;&gt;</panel_attributes><additional_attributes>10;150;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>280</x><y>360</y><w>150</w><h>170</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;askForWeatherData&gt;&gt;</panel_attributes><additional_attributes>10;150;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>690</x><y>440</y><w>70</w><h>100</h></coordinates><panel_attributes>lt=&lt;.
+&lt;&lt;calls&gt;&gt;
+fg=red</panel_attributes><additional_attributes>10;80;10;10</additional_attributes></element><element><id>UMLClass</id><coordinates><x>190</x><y>510</y><w>270</w><h>90</h></coordinates><panel_attributes>&lt;&lt;Java&gt;&gt;
+WeatherDataReader
+bg=yellow</panel_attributes><additional_attributes></additional_attributes></element></diagram>
