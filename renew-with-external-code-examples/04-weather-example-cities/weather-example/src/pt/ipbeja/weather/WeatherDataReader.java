@@ -50,6 +50,9 @@ public class WeatherDataReader {
                         String responseBody = response.body();
                         System.out.println("Raw response for " + cityName + ": " + responseBody);
 
+                        if (responseBody.charAt(0) == '[') 
+                            responseBody = responseBody.substring(1, responseBody.length() - 1);
+                        
                         Map<String, Double> weatherDataMap = parseWeatherData(responseBody);
 
                         System.out.println("--- Parsed Weather Data for " + cityName + " (within askForWeatherData) ---");

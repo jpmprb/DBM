@@ -1,0 +1,5 @@
+class WeatherNetClass for net weatherNet {
+  void receiveData(String data) {
+    this:receiveData(data);
+  } 
+}
