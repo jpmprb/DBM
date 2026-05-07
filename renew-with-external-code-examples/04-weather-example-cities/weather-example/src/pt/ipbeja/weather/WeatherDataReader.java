@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.util.Locale;
 
 public class WeatherDataReader {
 
@@ -34,7 +35,7 @@ public class WeatherDataReader {
             public void run() {
                 System.out.println("Preparing to fetch weather data for " + cityName + "...");
                 try {
-                    String apiUrl = String.format(
+                    String apiUrl = String.format(Locale.US,
                             "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&current_weather=true",
                             latitude, longitude);
 
@@ -50,9 +51,6 @@ public class WeatherDataReader {
                         String responseBody = response.body();
                         System.out.println("Raw response for " + cityName + ": " + responseBody);
 
-                        if (responseBody.charAt(0) == '[') 
-                            responseBody = responseBody.substring(1, responseBody.length() - 1);
-                        
                         Map<String, Double> weatherDataMap = parseWeatherData(responseBody);
 
                         System.out.println("--- Parsed Weather Data for " + cityName + " (within askForWeatherData) ---");
