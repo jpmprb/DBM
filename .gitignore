@@ -1,7 +1,7 @@
 .DS_Store
 */.DS_Store
 .idea
-.bak
+*.bak
 */.bak
-.aut
+*.aut
 */.aut
