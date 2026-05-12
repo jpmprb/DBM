@@ -12,112 +12,101 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.Formatter;
 import java.util.Collections;
-import java.util.Locale; // Adicionado para corrigir a formatação
+import java.util.Locale;
 
 public class WeatherDataReader {
 
     // JSON Key constants
     private static final String KEY_CURRENT_WEATHER = "current_weather";
 
+    // Melhoria 5: HttpClient partilhado e estático para eficiência
+    private static final HttpClient HTTP_CLIENT = 
+            HttpClient.newHttpClient();
+
     private WeatherNetClass weatherNetToReceiveData;
     private double latitude;
     private double longitude;
-    private HttpClient httpClient;
 
     public WeatherDataReader(WeatherNetClass weatherNetToReceiveData, 
-                             double latitude, double longitude) {
+            double latitude, double longitude) {
         this.weatherNetToReceiveData = weatherNetToReceiveData;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.httpClient = HttpClient.newHttpClient();
     }
 
     public void askForWeatherData() {
         System.out.println("*** in askForWeatherData ***");
+        System.out.println("Preparing to fetch weather data...");
 
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                System.out.println("Preparing to fetch weather data...");
-                try {
-                    // Correção efetuada: Locale.US forçado
-                    String apiUrl = String.format(Locale.US,
-                            "https://api.open-meteo.com/v1/forecast" +
-                            "?latitude=%.2f&longitude=%.2f" +
-                            "&current_weather=true",
-                            latitude, longitude);
+        String apiUrl = String.format(Locale.US,
+                "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=%.2f&longitude=%.2f" +
+                "&current_weather=true",
+                latitude, longitude);
 
-                    HttpRequest request = HttpRequest.newBuilder()
-                            .uri(URI.create(apiUrl))
-                            .GET()
-                            .build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                .GET()
+                .build();
 
-                    System.out.println("Sending request to: " + apiUrl);
-                    HttpResponse<String> response = httpClient.send(
-                            request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("Sending request to: " + apiUrl);
 
-                    if (response.statusCode() == 200) {
-                        String responseBody = response.body();
-                        System.out.println("Raw response: " + 
-                                responseBody);
-
-                        Map<String, Double> weatherDataMap = 
-                                parseWeatherData(responseBody);
-
-                        System.out.println("--- Parsed Weather Data " +
-                                "(within askForWeatherData) ---");
-                        if (weatherDataMap.isEmpty()) {
-                            System.out.println("  Map is empty after " +
-                                    "parsing.");
-                        } else {
-                            for (Map.Entry<String, Double> entry : 
-                                    weatherDataMap.entrySet()) {
-                                System.out.printf("  %s: %.2f\n", 
-                                        entry.getKey(), 
-                                        entry.getValue());
-                            }
-                        }
-                        System.out.println(
-                                "--------------------------------------" +
-                                "--------------");
-
-                        System.out.println("WeatherData (as Map): " +
-                                "Sending data to " + 
-                                "weatherNetToReceiveData...");
-                        weatherNetToReceiveData.receiveData(
-                                weatherDataMap);
-
-                    } else {
-                        String errorMessage = "Error: Could not fetch " +
-                                "weather data. Status code: " + 
-                                response.statusCode();
-                        System.err.println(errorMessage);
-                        weatherNetToReceiveData.receiveData(
-                                Collections.emptyMap());
-                    }
-
-                } catch (IOException | InterruptedException e) {
-                    String errorMessage = "Error: Exception during data " +
-                            "fetch - " + e.getMessage();
+        // Melhoria 4: Pedido assíncrono moderno em vez de Thread manual
+        HTTP_CLIENT.sendAsync(request, 
+                HttpResponse.BodyHandlers.ofString())
+                .thenAccept(this::processResponse)
+                .exceptionally(throwable -> {
+                    String errorMessage = "Error: Exception during " +
+                            "data fetch - " + throwable.getMessage();
                     System.err.println(errorMessage);
-                    e.printStackTrace();
                     weatherNetToReceiveData.receiveData(
                             Collections.emptyMap());
-                    if (e instanceof InterruptedException) {
-                        Thread.currentThread().interrupt();
+                    return null;
+                });
+    }
+
+    private void processResponse(HttpResponse<String> response) {
+        if (response.statusCode() == 200) {
+            String responseBody = response.body();
+            System.out.println("Raw response: " + responseBody);
+
+            try {
+                Map<String, Double> weatherDataMap = 
+                        parseWeatherData(responseBody);
+
+                System.out.println("--- Parsed Weather Data " +
+                        "(within askForWeatherData) ---");
+                if (weatherDataMap.isEmpty()) {
+                    System.out.println("  Map is empty after parsing.");
+                } else {
+                    for (Map.Entry<String, Double> entry : 
+                            weatherDataMap.entrySet()) {
+                        System.out.printf("  %s: %.2f\n", 
+                                entry.getKey(), entry.getValue());
                     }
-                } catch (JSONException e) {
-                    String errorMessage = "Error: Exception during data " +
-                            "parsing - " + e.getMessage();
-                    System.err.println(errorMessage);
-                    e.printStackTrace();
-                    weatherNetToReceiveData.receiveData(
-                            Collections.emptyMap());
                 }
+                System.out.println("---------------------------------" +
+                        "-----------------------------");
+
+                System.out.println("WeatherData (as Map): Sending " +
+                        "data to weatherNetToReceiveData...");
+                weatherNetToReceiveData.receiveData(weatherDataMap);
+
+            } catch (JSONException e) {
+                String errorMessage = "Error: Exception during data " +
+                        "parsing - " + e.getMessage();
+                System.err.println(errorMessage);
+                e.printStackTrace();
+                weatherNetToReceiveData.receiveData(
+                        Collections.emptyMap());
             }
-        };
-        Thread thread = new Thread(runnable);
-        thread.start();
+        } else {
+            String errorMessage = "Error: Could not fetch weather " +
+                    "data. Status code: " + response.statusCode();
+            System.err.println(errorMessage);
+            weatherNetToReceiveData.receiveData(
+                    Collections.emptyMap());
+        }
     }
 
     private Map<String, Double> parseWeatherData(String jsonData) 
@@ -160,7 +149,7 @@ public class WeatherDataReader {
         try (Formatter formatter = new Formatter(sb)) {
             for (Map.Entry<String, Double> entry : map.entrySet()) {
                 formatter.format("  %s: %.2f\n", entry.getKey(), 
-                                 entry.getValue());
+                        entry.getValue());
             }
         }
         return sb.toString().trim();
@@ -170,14 +159,14 @@ public class WeatherDataReader {
     public static void main(String[] args) {
         WeatherNetClass networkRelay = new WeatherNetClass();
         WeatherDataReader reader = 
-        new WeatherDataReader(networkRelay, 52.52, 13.41); // Berlin
+                new WeatherDataReader(networkRelay, 52.52, 13.41);
         reader.askForWeatherData();
 
         System.out.println("\nSimulating a request to a potentially " +
                 "problematic endpoint (for testing error " +
                 "handling if it occurs):");
         WeatherDataReader errorReader = new WeatherDataReader(
-                networkRelay, 999.99, 999.99); // Invalid coordinates
+                networkRelay, 999.99, 999.99); // Invalid coords
         errorReader.askForWeatherData();
 
         System.out.println("\nMain thread continues to run while " +
