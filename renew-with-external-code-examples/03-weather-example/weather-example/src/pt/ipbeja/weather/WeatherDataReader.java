@@ -10,8 +10,9 @@ import org.json.JSONException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Iterator;
-import java.util.Formatter; // Still used for convertMapToString
+import java.util.Formatter;
 import java.util.Collections;
+import java.util.Locale; // Adicionado para corrigir a formatação
 
 public class WeatherDataReader {
 
@@ -39,7 +40,8 @@ public class WeatherDataReader {
             public void run() {
                 System.out.println("Preparing to fetch weather data...");
                 try {
-                    String apiUrl = String.format(
+                    // Correção efetuada: Locale.US forçado
+                    String apiUrl = String.format(Locale.US,
                             "https://api.open-meteo.com/v1/forecast" +
                             "?latitude=%.2f&longitude=%.2f" +
                             "&current_weather=true",
@@ -56,32 +58,34 @@ public class WeatherDataReader {
 
                     if (response.statusCode() == 200) {
                         String responseBody = response.body();
-                        System.out.println("Raw response: " + responseBody);
+                        System.out.println("Raw response: " + 
+                                responseBody);
 
                         Map<String, Double> weatherDataMap = 
                                 parseWeatherData(responseBody);
 
-                        // Print the key-value pairs immediately after parsing
                         System.out.println("--- Parsed Weather Data " +
-                                           "(within askForWeatherData) ---");
+                                "(within askForWeatherData) ---");
                         if (weatherDataMap.isEmpty()) {
                             System.out.println("  Map is empty after " +
-                                               "parsing.");
+                                    "parsing.");
                         } else {
                             for (Map.Entry<String, Double> entry : 
                                     weatherDataMap.entrySet()) {
                                 System.out.printf("  %s: %.2f\n", 
-                                                  entry.getKey(), 
-                                                  entry.getValue());
+                                        entry.getKey(), 
+                                        entry.getValue());
                             }
                         }
                         System.out.println(
-                                "----------------------------------------" +
-                                "------------");
+                                "--------------------------------------" +
+                                "--------------");
 
                         System.out.println("WeatherData (as Map): " +
-                                "Sending data to weatherNetToReceiveData...");
-                        weatherNetToReceiveData.receiveData(weatherDataMap);
+                                "Sending data to " + 
+                                "weatherNetToReceiveData...");
+                        weatherNetToReceiveData.receiveData(
+                                weatherDataMap);
 
                     } else {
                         String errorMessage = "Error: Could not fetch " +
@@ -133,13 +137,14 @@ public class WeatherDataReader {
         if (root.has(KEY_CURRENT_WEATHER)) {
             JSONObject currentWeatherObject = 
                     root.getJSONObject(KEY_CURRENT_WEATHER);
-            Iterator<String> currentWeatherKeys = currentWeatherObject.keys();
+            Iterator<String> currentWeatherKeys = 
+                    currentWeatherObject.keys();
             while (currentWeatherKeys.hasNext()) {
                 String key = currentWeatherKeys.next();
                 Object value = currentWeatherObject.get(key);
                 if (value instanceof Number) {
                     weatherDataMap.put(KEY_CURRENT_WEATHER + "_" + key, 
-                                       currentWeatherObject.getDouble(key));
+                            currentWeatherObject.getDouble(key));
                 }
             }
         }
@@ -150,7 +155,8 @@ public class WeatherDataReader {
         if (map == null || map.isEmpty()) {
             return "No numerical weather data parsed or available.";
         }
-        StringBuilder sb = new StringBuilder("Parsed Weather Data (Map):\n");
+        StringBuilder sb = 
+                new StringBuilder("Parsed Weather Data (Map):\n");
         try (Formatter formatter = new Formatter(sb)) {
             for (Map.Entry<String, Double> entry : map.entrySet()) {
                 formatter.format("  %s: %.2f\n", entry.getKey(), 
@@ -163,20 +169,19 @@ public class WeatherDataReader {
     /// Test the WeatherDataReader class
     public static void main(String[] args) {
         WeatherNetClass networkRelay = new WeatherNetClass();
-        WeatherDataReader reader = new WeatherDataReader(networkRelay, 
-                                                         52.52, 13.41); 
-        // Berlin
+        WeatherDataReader reader = 
+        new WeatherDataReader(networkRelay, 52.52, 13.41); // Berlin
         reader.askForWeatherData();
 
         System.out.println("\nSimulating a request to a potentially " +
-                           "problematic endpoint (for testing error " +
-                           "handling if it occurs):");
+                "problematic endpoint (for testing error " +
+                "handling if it occurs):");
         WeatherDataReader errorReader = new WeatherDataReader(
-                networkRelay, 999.99, 999.99); // Invalid coordinates likely
+                networkRelay, 999.99, 999.99); // Invalid coordinates
         errorReader.askForWeatherData();
 
         System.out.println("\nMain thread continues to run while " +
-                           "weather data is fetched asynchronously...");
+                "weather data is fetched asynchronously...");
         try {
             Thread.sleep(7000);
         } catch (InterruptedException e) {
@@ -185,7 +190,7 @@ public class WeatherDataReader {
         }
 
         System.out.println("\n--- Demonstrating Map parser with " +
-                           "sample JSON (direct use) ---");
+                "sample JSON (direct use) ---");
         
         String sampleJsonData = "{"
                 + "\"latitude\":52.52,"
@@ -216,48 +221,24 @@ public class WeatherDataReader {
                 + "}";
 
         try {
-            System.out.println("Parsing sample JSON with Map-returning " +
-                               "method:");
+            System.out.println("Parsing sample JSON with " +
+                    "Map-returning method:");
             Map<String, Double> dataMap = 
                     reader.parseWeatherData(sampleJsonData);
 
-            System.out.println("Demonstrating convertMapToString utility:");
+            System.out.println("Demonstrating convertMapToString:");
             System.out.println(reader.convertMapToString(dataMap));
 
             System.out.println("\nDemonstrating WeatherNetClass " +
-                               "receiving map directly (simulated):");
+                    "receiving map directly (simulated):");
             networkRelay.receiveData(dataMap);
 
         } catch (JSONException e) {
             System.err.println("Error during manual parsing " +
-                               "demonstration: " + e.getMessage());
+                    "demonstration: " + e.getMessage());
             e.printStackTrace();
         }
 
         System.out.println("\nMain thread finished.");
     }
 }
-
-///**
-// * Dummy implementation of WeatherNetClass for testing purposes.
-// * Only includes receiveData(Map<String, Double> dataMap).
-// * The printing logic for map contents is now more direct.
-// */
-//class WeatherNetClass {
-//    public void receiveData(Map<String, Double> dataMap) {
-//        System.out.println("WeatherNetClass received data map:"); 
-//        // Header for context
-//        if (dataMap == null || dataMap.isEmpty()) {
-//            System.out.println("  Map is null or empty (possibly " +
-//                               "indicating an error or no data).");
-//            return;
-//        }
-//        // Iterate through the map and print each key-value pair 
-//        // directly to standard output
-//        for (Map.Entry<String, Double> entry : dataMap.entrySet()) {
-//            // Using printf for formatted output of each line
-//            System.out.printf("  %s: %.2f\n", entry.getKey(), 
-//                              entry.getValue());
-//        }
-//    }
-//}
