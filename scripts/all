@@ -1,0 +1,20 @@
+#!/usr/bin/env zsh
+
+# Para a execução caso algum dos scripts retorne um erro
+set -e
+
+# Descobre a pasta exata onde esta script está guardada
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "A iniciar a execução..."
+
+echo "-> A executar compilestub..."
+"$SCRIPT_DIR/compilestub"
+
+echo "-> A executar jcompile..."
+"$SCRIPT_DIR/jcompile"
+
+echo "-> A executar renew-ext..."
+"$SCRIPT_DIR/renew-ext"
+
+echo "Todas as scripts foram executadas com sucesso!"

@@ -19,7 +19,7 @@ public class WeatherDataReader {
     // JSON Key constants
     private static final String KEY_CURRENT_WEATHER = "current_weather";
 
-    // Melhoria 5: HttpClient partilhado e estático para eficiência
+    // HttpClient partilhado e estático para eficiência
     private static final HttpClient HTTP_CLIENT = 
             HttpClient.newHttpClient();
 
@@ -51,7 +51,7 @@ public class WeatherDataReader {
 
         System.out.println("Sending request to: " + apiUrl);
 
-        // Melhoria 4: Pedido assíncrono moderno em vez de Thread manual
+        // Pedido assíncrono em vez de Thread manual
         HTTP_CLIENT.sendAsync(request, 
                 HttpResponse.BodyHandlers.ofString())
                 .thenAccept(this::processResponse)
