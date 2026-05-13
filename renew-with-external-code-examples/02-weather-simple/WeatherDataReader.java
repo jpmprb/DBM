@@ -1,5 +1,7 @@
+import java.util.concurrent.CompletableFuture;
+
 public class WeatherDataReader {
-    private WeatherNetClass weatherNetToReceiveData;
+    private final WeatherNetClass weatherNetToReceiveData;
 
     public WeatherDataReader(WeatherNetClass weatherNetToReceiveData) {
         this.weatherNetToReceiveData = weatherNetToReceiveData;
@@ -7,26 +9,25 @@ public class WeatherDataReader {
 
     public void askForWeatherData() {
         System.out.println("***in askForWeatheData***");
+        sleep(3000);
+
+        CompletableFuture.runAsync(() -> { 
+            System.out.println("Waiting to send data to weatherNetClass");
+            sleep(6000);
+            
+            System.out.println("WeatherData: Sending data to weatherNetToReceiveData: " + weatherNetToReceiveData);
+            weatherNetToReceiveData.receiveData("weatherData sent");
+        });
+    }
+
+    // Método auxiliar para manter o código principal mais curto
+    private void sleep(long millis) {
         try {
-            Thread.sleep(3000);
+            Thread.sleep(millis);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            // Restaura o status de interrupção da thread (boa prática em Java)
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Thread foi interrompida durante o sleep", e);
         }
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() { 
-                System.out.println("Waiting to send data to weatherNetClass");
-                try {
-                    Thread.sleep(6000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                System.out.println("WeatherData: Sending data to weatherNetToReceiveData: " + weatherNetToReceiveData);
-                weatherNetToReceiveData.receiveData("weatherData sent");
-            }
-        };
-        Thread thread = new Thread(runnable);
-        thread.start();
     }
 }
-
